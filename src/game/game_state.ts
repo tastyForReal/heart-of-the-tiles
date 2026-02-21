@@ -113,7 +113,7 @@ export class GameStateManager {
         const current_active_row = this.get_active_row();
         if (current_active_row && current_active_row.row_type !== RowType.START) {
             if (current_active_row.y_position > SCREEN_CONFIG.HEIGHT) {
-                this.trigger_game_over_b(current_active_row);
+                this.trigger_game_over_out_of_bounds(current_active_row);
                 return;
             }
         }
@@ -170,7 +170,7 @@ export class GameStateManager {
             this.press_rectangle(pressed_rect, active_row);
             return true;
         } else if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
-            this.trigger_game_over_a(slot_index, screen_x, screen_y, active_row);
+            this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
             return false;
         }
 
@@ -205,7 +205,7 @@ export class GameStateManager {
             const column_width = SCREEN_CONFIG.WIDTH / 4;
             const screen_x = slot_index * column_width + column_width / 2;
             const screen_y = active_row.y_position + active_row.height / 2;
-            this.trigger_game_over_a(slot_index, screen_x, screen_y, active_row);
+            this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
             return false;
         }
 
@@ -251,7 +251,7 @@ export class GameStateManager {
         return null;
     }
 
-    private trigger_game_over_a(slot_index: number, screen_x: number, screen_y: number, active_row: RowData): void {
+    private trigger_game_over_misclicked(slot_index: number, screen_x: number, screen_y: number, active_row: RowData): void {
         this.game_data.state = GameState.GAME_OVER_A;
 
         const column_width = SCREEN_CONFIG.WIDTH / 4;
@@ -276,7 +276,7 @@ export class GameStateManager {
         };
     }
 
-    private trigger_game_over_b(active_row: RowData): void {
+    private trigger_game_over_out_of_bounds(active_row: RowData): void {
         this.game_data.state = GameState.GAME_OVER_B;
 
         const unpressed_rect = active_row.rectangles.find(r => !r.is_pressed);
