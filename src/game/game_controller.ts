@@ -62,6 +62,7 @@ export class GameController {
         const state = this.game_state.get_game_data();
 
         if (state.state === GameState.GAME_OVER_A || state.state === GameState.GAME_OVER_B) {
+            this.is_keyboard_input = false;
             return;
         }
 
@@ -79,6 +80,7 @@ export class GameController {
 
     private handle_reset(): void {
         this.game_state.reset();
+        this.is_keyboard_input = false;
     }
 
     set_keyboard_input(): void {
