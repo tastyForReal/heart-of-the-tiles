@@ -129,7 +129,8 @@ export class GameController {
         const visible_rows = this.game_state.get_visible_rows();
         const particles = this.game_state.get_particle_system().get_particles();
         const game_over_indicator = this.game_state.get_game_over_indicator();
-        this.renderer.render(visible_rows, particles, game_over_indicator);
+        const scroll_offset = this.game_state.get_game_data().scroll_offset;
+        this.renderer.render(visible_rows, particles, game_over_indicator, scroll_offset);
     }
 
     resize(width: number, height: number): void {

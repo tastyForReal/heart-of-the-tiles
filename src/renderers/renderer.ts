@@ -159,7 +159,7 @@ export class Renderer {
         return true;
     }
 
-    private create_rectangle_vertices(rect: RectangleData): RectangleVertex[] {
+    private create_rectangle_vertices(rect: RectangleData, scroll_offset: number): RectangleVertex[] {
         const [r, g, b, _] = hex_to_rgba(rect.color);
         const opacity = rect.opacity;
 
@@ -167,14 +167,16 @@ export class Renderer {
 
         const color: [number, number, number, number] = [r, g, b, effective_opacity];
 
-        return [
-            { position: [rect.x, rect.y], color },
-            { position: [rect.x + rect.width, rect.y], color },
-            { position: [rect.x + rect.width, rect.y + rect.height], color },
+        const y = rect.y + scroll_offset;
 
-            { position: [rect.x, rect.y], color },
-            { position: [rect.x + rect.width, rect.y + rect.height], color },
-            { position: [rect.x, rect.y + rect.height], color },
+        return [
+            { position: [rect.x, y], color },
+            { position: [rect.x + rect.width, y], color },
+            { position: [rect.x + rect.width, y + rect.height], color },
+
+            { position: [rect.x, y], color },
+            { position: [rect.x + rect.width, y + rect.height], color },
+            { position: [rect.x, y + rect.height], color },
         ];
     }
 
@@ -215,7 +217,7 @@ export class Renderer {
         ];
     }
 
-    render(visible_rows: RowData[], particles: ParticleData[], game_over_indicator: RectangleData | null): void {
+    render(visible_rows: RowData[], particles: ParticleData[], game_over_indicator: RectangleData | null, scroll_offset: number): void {
         const device = this.gpu_context.get_device();
         const context = this.gpu_context.get_context();
 
@@ -243,13 +245,13 @@ export class Renderer {
 
         for (const row of visible_rows) {
             for (const rect of row.rectangles) {
-                const vertices = this.create_rectangle_vertices(rect);
+                const vertices = this.create_rectangle_vertices(rect, scroll_offset);
                 all_vertices.push(...vertices);
             }
         }
 
         if (game_over_indicator) {
-            const vertices = this.create_rectangle_vertices(game_over_indicator);
+            const vertices = this.create_rectangle_vertices(game_over_indicator, scroll_offset);
             all_vertices.push(...vertices);
         }
 

@@ -98,28 +98,21 @@ export class GameStateManager {
         const scroll_delta = scroll_speed * delta_time;
         this.game_data.scroll_offset += scroll_delta;
 
-        for (const row of this.game_data.rows) {
-            row.y_position += scroll_delta;
-
-            for (const rect of row.rectangles) {
-                rect.y = row.y_position;
-            }
-        }
-
         this.update_active_row();
     }
 
     private update_active_row(): void {
         const current_active_row = this.get_active_row();
         if (current_active_row && current_active_row.row_type !== RowType.START) {
-            if (current_active_row.y_position > SCREEN_CONFIG.HEIGHT) {
+            const screen_y = current_active_row.y_position + this.game_data.scroll_offset;
+            if (screen_y > SCREEN_CONFIG.HEIGHT) {
                 this.trigger_game_over_out_of_bounds(current_active_row);
                 return;
             }
         }
 
         const visible_incomplete_rows = this.game_data.rows.filter(row => {
-            return !row.is_completed && is_row_visible(row);
+            return !row.is_completed && is_row_visible(row, this.game_data.scroll_offset);
         });
 
         if (visible_incomplete_rows.length > 0) {
@@ -148,8 +141,9 @@ export class GameStateManager {
 
         if (this.game_data.state === GameState.PAUSED && start_row && !start_row.is_completed) {
             const start_rect = start_row.rectangles[0];
-            if (point_in_rect(screen_x, screen_y, start_rect.x, start_rect.y, start_rect.width, start_rect.height)) {
-                this.press_rectangle(start_rect, start_row);
+            const start_screen_y = start_rect.y + this.game_data.scroll_offset;
+            if (point_in_rect(screen_x, screen_y, start_rect.x, start_screen_y, start_rect.width, start_rect.height)) {
+                this.press_rectangle(start_rect, start_row, start_screen_y);
                 this.game_data.state = GameState.PLAYING;
                 return true;
             }
@@ -161,13 +155,13 @@ export class GameStateManager {
             return false;
         }
 
-        const row_top = active_row.y_position;
-        const row_bottom = active_row.y_position + active_row.height;
+        const row_top = active_row.y_position + this.game_data.scroll_offset;
+        const row_bottom = row_top + active_row.height;
 
         const pressed_rect = active_row.rectangles.find(r => r.slot_index === slot_index);
 
         if (pressed_rect && !pressed_rect.is_pressed) {
-            this.press_rectangle(pressed_rect, active_row);
+            this.press_rectangle(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
             return true;
         } else if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
             this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
@@ -187,7 +181,7 @@ export class GameStateManager {
             return false;
         }
 
-        const row_bottom = active_row.y_position + active_row.height;
+        const row_bottom = active_row.y_position + this.game_data.scroll_offset + active_row.height;
         const timing_zone = SCREEN_CONFIG.HEIGHT / 2;
 
         if (row_bottom < timing_zone) {
@@ -198,13 +192,13 @@ export class GameStateManager {
 
         if (pressed_rect && !pressed_rect.is_pressed) {
             const screen_x = pressed_rect.x + pressed_rect.width / 2;
-            const screen_y = pressed_rect.y + pressed_rect.height / 2;
-            this.press_rectangle(pressed_rect, active_row);
+            const screen_y = pressed_rect.y + this.game_data.scroll_offset + pressed_rect.height / 2;
+            this.press_rectangle(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
             return true;
         } else if (!pressed_rect) {
             const column_width = SCREEN_CONFIG.WIDTH / 4;
             const screen_x = slot_index * column_width + column_width / 2;
-            const screen_y = active_row.y_position + active_row.height / 2;
+            const screen_y = active_row.y_position + this.game_data.scroll_offset + active_row.height / 2;
             this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
             return false;
         }
@@ -212,11 +206,11 @@ export class GameStateManager {
         return false;
     }
 
-    private press_rectangle(rect: RectangleData, row: RowData): void {
+    private press_rectangle(rect: RectangleData, row: RowData, screen_y: number): void {
         rect.is_pressed = true;
         rect.opacity = 0.25;
 
-        this.particle_system.add_debris(rect.x, rect.y, rect.width, rect.height, 20);
+        this.particle_system.add_debris(rect.x, screen_y, rect.width, rect.height, 20);
 
         this.check_row_completion(row);
     }
@@ -300,7 +294,6 @@ export class GameStateManager {
     }
 
     private calculate_reposition_offset(): number {
-        const completed_height = this.game_data.total_completed_height;
         const active_row = this.get_active_row();
 
         if (!active_row) {
@@ -310,12 +303,7 @@ export class GameStateManager {
         const active_row_height = active_row.height;
         const base_row_height = SCREEN_CONFIG.BASE_ROW_HEIGHT;
 
-        const target_y = SCREEN_CONFIG.HEIGHT - completed_height - active_row_height - base_row_height;
-
-        const current_y = active_row.y_position;
-        const delta_y = target_y - current_y;
-
-        return this.game_data.scroll_offset + delta_y;
+        return SCREEN_CONFIG.HEIGHT - base_row_height - active_row_height - active_row.y_position;
     }
 
     update_game_over_flash(current_time: number): void {
@@ -352,16 +340,7 @@ export class GameStateManager {
 
         const new_offset = animation.start_offset + (animation.target_offset - animation.start_offset) * eased_progress;
 
-        const delta_offset = new_offset - this.game_data.scroll_offset;
         this.game_data.scroll_offset = new_offset;
-
-        for (const row of this.game_data.rows) {
-            row.y_position += delta_offset;
-
-            for (const rect of row.rectangles) {
-                rect.y = row.y_position;
-            }
-        }
 
         if (progress >= 1.0) {
             animation.is_animating = false;
@@ -373,7 +352,7 @@ export class GameStateManager {
     }
 
     get_visible_rows(): RowData[] {
-        return this.game_data.rows.filter(is_row_visible);
+        return this.game_data.rows.filter(row => is_row_visible(row, this.game_data.scroll_offset));
     }
 
     get_game_over_indicator(): RectangleData | null {

@@ -201,14 +201,15 @@ export function generate_all_rows(row_count: number = DEFAULT_ROW_COUNT): RowDat
     return rows;
 }
 
-export function find_active_row(rows: RowData[]): RowData | null {
+export function find_active_row(rows: RowData[], scroll_offset: number): RowData | null {
     const screen_bottom = SCREEN_CONFIG.HEIGHT;
 
     for (const row of rows) {
         if (!row.is_completed && row.row_type !== RowType.START) {
-            const row_bottom = row.y_position + row.height;
+            const screen_y = row.y_position + scroll_offset;
+            const row_bottom = screen_y + row.height;
 
-            if (row_bottom > 0 && row.y_position < screen_bottom) {
+            if (row_bottom > 0 && screen_y < screen_bottom) {
                 return row;
             }
         }
@@ -222,7 +223,8 @@ export function find_active_row(rows: RowData[]): RowData | null {
     return null;
 }
 
-export function is_row_visible(row: RowData): boolean {
-    const row_bottom = row.y_position + row.height;
-    return row_bottom > 0 && row.y_position < SCREEN_CONFIG.HEIGHT;
+export function is_row_visible(row: RowData, scroll_offset: number): boolean {
+    const screen_y = row.y_position + scroll_offset;
+    const row_bottom = screen_y + row.height;
+    return row_bottom > 0 && screen_y < SCREEN_CONFIG.HEIGHT;
 }
