@@ -1,0 +1,337 @@
+import { GPUContext } from "./gpu_context.js";
+import { hex_to_rgba } from "../utils/math_utils.js";
+import { RowData, RectangleData, ParticleData, SCREEN_CONFIG, COLORS } from "../game/types.js";
+
+interface RectangleVertex {
+    position: [number, number];
+    color: [number, number, number, number];
+}
+
+export class Renderer {
+    private gpu_context: GPUContext;
+    private rectangle_pipeline: GPURenderPipeline | null = null;
+    private line_pipeline: GPURenderPipeline | null = null;
+    private particle_pipeline: GPURenderPipeline | null = null;
+    private vertex_buffer: GPUBuffer | null = null;
+    private uniform_buffer: GPUBuffer | null = null;
+    private bind_group: GPUBindGroup | null = null;
+    private bind_group_layout: GPUBindGroupLayout | null = null;
+
+    constructor(gpu_context: GPUContext) {
+        this.gpu_context = gpu_context;
+    }
+
+    async initialize(): Promise<boolean> {
+        const device = this.gpu_context.get_device();
+        const format = this.gpu_context.get_format();
+
+        if (!device || !format) {
+            return false;
+        }
+
+        const rectangle_shader = this.gpu_context.create_shader_module(`
+            struct Uniforms {
+                screen_width: f32,
+                screen_height: f32,
+            }
+
+            @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+            struct VertexInput {
+                @location(0) position: vec2<f32>,
+                @location(1) color: vec4<f32>,
+            }
+
+            struct VertexOutput {
+                @builtin(position) position: vec4<f32>,
+                @location(0) color: vec4<f32>,
+            }
+
+            @vertex
+            fn vertexMain(input: VertexInput) -> VertexOutput {
+                var output: VertexOutput;
+                
+                let x = (input.position.x / uniforms.screen_width) * 2.0 - 1.0;
+                let y = 1.0 - (input.position.y / uniforms.screen_height) * 2.0;
+                output.position = vec4<f32>(x, y, 0.0, 1.0);
+                output.color = input.color;
+                return output;
+            }
+
+            @fragment
+            fn fragmentMain(input: VertexOutput) -> @location(0) vec4<f32> {
+                return input.color;
+            }
+        `);
+
+        if (!rectangle_shader) {
+            return false;
+        }
+
+        this.bind_group_layout = this.gpu_context.create_bind_group_layout({
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: "uniform" },
+                },
+            ],
+        });
+
+        if (!this.bind_group_layout) {
+            return false;
+        }
+
+        this.uniform_buffer = this.gpu_context.create_buffer({
+            size: 8,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+
+        if (!this.uniform_buffer) {
+            return false;
+        }
+
+        device.queue.writeBuffer(this.uniform_buffer, 0, new Float32Array([SCREEN_CONFIG.WIDTH, SCREEN_CONFIG.HEIGHT]));
+
+        this.bind_group = this.gpu_context.create_bind_group({
+            layout: this.bind_group_layout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: { buffer: this.uniform_buffer },
+                },
+            ],
+        });
+
+        const pipeline_layout = device.createPipelineLayout({
+            bindGroupLayouts: [this.bind_group_layout],
+        });
+
+        this.rectangle_pipeline = device.createRenderPipeline({
+            layout: pipeline_layout,
+            vertex: {
+                module: rectangle_shader,
+                entryPoint: "vertexMain",
+                buffers: [
+                    {
+                        arrayStride: 24,
+                        attributes: [
+                            {
+                                shaderLocation: 0,
+                                offset: 0,
+                                format: "float32x2",
+                            },
+                            {
+                                shaderLocation: 1,
+                                offset: 8,
+                                format: "float32x4",
+                            },
+                        ],
+                    },
+                ],
+            },
+            fragment: {
+                module: rectangle_shader,
+                entryPoint: "fragmentMain",
+                targets: [
+                    {
+                        format: format,
+                        blend: {
+                            color: {
+                                srcFactor: "src-alpha",
+                                dstFactor: "one-minus-src-alpha",
+                                operation: "add",
+                            },
+                            alpha: {
+                                srcFactor: "one",
+                                dstFactor: "one-minus-src-alpha",
+                                operation: "add",
+                            },
+                        },
+                    },
+                ],
+            },
+            primitive: {
+                topology: "triangle-list",
+            },
+        });
+
+        return true;
+    }
+
+    private create_rectangle_vertices(rect: RectangleData): RectangleVertex[] {
+        const [r, g, b, _] = hex_to_rgba(rect.color);
+        const opacity = rect.opacity;
+
+        const effective_opacity = rect.flash_state ? rect.opacity * 0.5 : rect.opacity;
+
+        const color: [number, number, number, number] = [r, g, b, effective_opacity];
+
+        return [
+            { position: [rect.x, rect.y], color },
+            { position: [rect.x + rect.width, rect.y], color },
+            { position: [rect.x + rect.width, rect.y + rect.height], color },
+
+            { position: [rect.x, rect.y], color },
+            { position: [rect.x + rect.width, rect.y + rect.height], color },
+            { position: [rect.x, rect.y + rect.height], color },
+        ];
+    }
+
+    private create_grid_line_vertices(x: number): RectangleVertex[] {
+        const color: [number, number, number, number] = [0, 0, 0, 1];
+
+        return [
+            { position: [x, 0], color },
+            { position: [x + SCREEN_CONFIG.GRID_LINE_WIDTH, 0], color },
+            {
+                position: [x + SCREEN_CONFIG.GRID_LINE_WIDTH, SCREEN_CONFIG.HEIGHT],
+                color,
+            },
+
+            { position: [x, 0], color },
+            {
+                position: [x + SCREEN_CONFIG.GRID_LINE_WIDTH, SCREEN_CONFIG.HEIGHT],
+                color,
+            },
+            { position: [x, SCREEN_CONFIG.HEIGHT], color },
+        ];
+    }
+
+    private create_particle_vertices(particle: ParticleData): RectangleVertex[] {
+        const [r, g, b, _] = hex_to_rgba(particle.color);
+        const color: [number, number, number, number] = [r, g, b, particle.opacity];
+
+        const half_size = particle.size / 2;
+
+        return [
+            { position: [particle.x - half_size, particle.y - half_size], color },
+            { position: [particle.x + half_size, particle.y - half_size], color },
+            { position: [particle.x + half_size, particle.y + half_size], color },
+
+            { position: [particle.x - half_size, particle.y - half_size], color },
+            { position: [particle.x + half_size, particle.y + half_size], color },
+            { position: [particle.x - half_size, particle.y + half_size], color },
+        ];
+    }
+
+    render(visible_rows: RowData[], particles: ParticleData[], game_over_indicator: RectangleData | null): void {
+        const device = this.gpu_context.get_device();
+        const context = this.gpu_context.get_context();
+
+        if (!device || !context || !this.rectangle_pipeline || !this.bind_group) {
+            return;
+        }
+
+        let all_vertices: RectangleVertex[] = [];
+
+        const bg_vertices: RectangleVertex[] = [
+            { position: [0, 0], color: [1, 1, 1, 1] },
+            { position: [SCREEN_CONFIG.WIDTH, 0], color: [1, 1, 1, 1] },
+            {
+                position: [SCREEN_CONFIG.WIDTH, SCREEN_CONFIG.HEIGHT],
+                color: [1, 1, 1, 1],
+            },
+            { position: [0, 0], color: [1, 1, 1, 1] },
+            {
+                position: [SCREEN_CONFIG.WIDTH, SCREEN_CONFIG.HEIGHT],
+                color: [1, 1, 1, 1],
+            },
+            { position: [0, SCREEN_CONFIG.HEIGHT], color: [1, 1, 1, 1] },
+        ];
+        all_vertices.push(...bg_vertices);
+
+        for (const row of visible_rows) {
+            for (const rect of row.rectangles) {
+                const vertices = this.create_rectangle_vertices(rect);
+                all_vertices.push(...vertices);
+            }
+        }
+
+        if (game_over_indicator) {
+            const vertices = this.create_rectangle_vertices(game_over_indicator);
+            all_vertices.push(...vertices);
+        }
+
+        for (const particle of particles) {
+            const vertices = this.create_particle_vertices(particle);
+            all_vertices.push(...vertices);
+        }
+
+        const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
+        for (let i = 1; i < SCREEN_CONFIG.COLUMN_COUNT; i++) {
+            const line_x = i * column_width;
+            const vertices = this.create_grid_line_vertices(line_x);
+            all_vertices.push(...vertices);
+        }
+
+        const vertex_data = new Float32Array(all_vertices.length * 6);
+        for (let i = 0; i < all_vertices.length; i++) {
+            const vertex = all_vertices[i];
+            const offset = i * 6;
+            vertex_data[offset] = vertex.position[0];
+            vertex_data[offset + 1] = vertex.position[1];
+            vertex_data[offset + 2] = vertex.color[0];
+            vertex_data[offset + 3] = vertex.color[1];
+            vertex_data[offset + 4] = vertex.color[2];
+            vertex_data[offset + 5] = vertex.color[3];
+        }
+
+        const buffer_size = vertex_data.byteLength;
+        if (!this.vertex_buffer || this.vertex_buffer.size < buffer_size) {
+            this.vertex_buffer = this.gpu_context.create_buffer({
+                size: buffer_size,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            });
+        }
+
+        if (!this.vertex_buffer) {
+            return;
+        }
+
+        device.queue.writeBuffer(this.vertex_buffer, 0, vertex_data);
+
+        const texture = this.gpu_context.get_current_texture();
+        if (!texture) {
+            return;
+        }
+
+        const encoder = this.gpu_context.create_command_encoder();
+        if (!encoder) {
+            return;
+        }
+
+        const render_pass = encoder.beginRenderPass({
+            colorAttachments: [
+                {
+                    view: texture.createView(),
+                    clearValue: { r: 1, g: 1, b: 1, a: 1 },
+                    loadOp: "clear",
+                    storeOp: "store",
+                },
+            ],
+        });
+
+        render_pass.setPipeline(this.rectangle_pipeline);
+        render_pass.setBindGroup(0, this.bind_group);
+
+        render_pass.setVertexBuffer(0, this.vertex_buffer);
+
+        render_pass.draw(all_vertices.length);
+
+        render_pass.end();
+
+        this.gpu_context.submit([encoder.finish()]);
+    }
+
+    resize(_width: number, _height: number): void {
+        const device = this.gpu_context.get_device();
+        if (device && this.uniform_buffer) {
+            device.queue.writeBuffer(
+                this.uniform_buffer,
+                0,
+                new Float32Array([SCREEN_CONFIG.WIDTH, SCREEN_CONFIG.HEIGHT]),
+            );
+        }
+    }
+}

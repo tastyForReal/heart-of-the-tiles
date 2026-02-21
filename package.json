@@ -1,0 +1,26 @@
+{
+    "name": "heart_of_the_tiles",
+    "version": "1.0.0",
+    "description": "Heart of the Tiles - A love letter to the mobile game \"Piano Tiles 2\"",
+    "main": "dist/main.js",
+    "scripts": {
+        "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json",
+        "start": "electron .",
+        "dev": "bun run build && electron ."
+    },
+    "keywords": [
+        "electron",
+        "webgpu",
+        "game",
+        "typescript"
+    ],
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "@webgpu/types": "^0.1.40",
+        "electron": "^29.0.0",
+        "prettier": "^3.8.1",
+        "typescript": "^5.3.0"
+    }
+}
