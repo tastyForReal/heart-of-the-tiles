@@ -60,8 +60,8 @@ export interface ParticleData {
 export enum GameState {
     PAUSED = "paused",
     PLAYING = "playing",
-    GAME_OVER_A = "game_over_a",
-    GAME_OVER_B = "game_over_b",
+    GAME_OVER_MISCLICKED = "game_over_misclicked",
+    GAME_OVER_OUT_OF_BOUNDS = "game_over_out_of_bounds",
     FLASHING = "flashing",
 }
 

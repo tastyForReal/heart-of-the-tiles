@@ -80,13 +80,13 @@ export class GameStateManager {
     is_paused(): boolean {
         return (
             this.game_data.state === GameState.PAUSED ||
-            this.game_data.state === GameState.GAME_OVER_A ||
-            this.game_data.state === GameState.GAME_OVER_B
+            this.game_data.state === GameState.GAME_OVER_MISCLICKED ||
+            this.game_data.state === GameState.GAME_OVER_OUT_OF_BOUNDS
         );
     }
 
     is_game_over(): boolean {
-        return this.game_data.state === GameState.GAME_OVER_A || this.game_data.state === GameState.GAME_OVER_B;
+        return this.game_data.state === GameState.GAME_OVER_MISCLICKED || this.game_data.state === GameState.GAME_OVER_OUT_OF_BOUNDS;
     }
 
     update_scroll(delta_time: number): void {
@@ -252,7 +252,7 @@ export class GameStateManager {
     }
 
     private trigger_game_over_misclicked(slot_index: number, screen_x: number, screen_y: number, active_row: RowData): void {
-        this.game_data.state = GameState.GAME_OVER_A;
+        this.game_data.state = GameState.GAME_OVER_MISCLICKED;
 
         const column_width = SCREEN_CONFIG.WIDTH / 4;
         const indicator: RectangleData = {
@@ -277,7 +277,7 @@ export class GameStateManager {
     }
 
     private trigger_game_over_out_of_bounds(active_row: RowData): void {
-        this.game_data.state = GameState.GAME_OVER_B;
+        this.game_data.state = GameState.GAME_OVER_OUT_OF_BOUNDS;
 
         const unpressed_rect = active_row.rectangles.find(r => !r.is_pressed);
         if (unpressed_rect) {

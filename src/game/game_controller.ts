@@ -61,7 +61,7 @@ export class GameController {
     private handle_slot_press(slot_index: number, screen_x: number, screen_y: number): void {
         const state = this.game_state.get_game_data();
 
-        if (state.state === GameState.GAME_OVER_A || state.state === GameState.GAME_OVER_B) {
+        if (state.state === GameState.GAME_OVER_MISCLICKED || state.state === GameState.GAME_OVER_OUT_OF_BOUNDS) {
             this.is_keyboard_input = false;
             return;
         }
