@@ -110,6 +110,14 @@ export class GameStateManager {
     }
 
     private update_active_row(): void {
+        const current_active_row = this.get_active_row();
+        if (current_active_row && current_active_row.row_type !== RowType.START) {
+            if (current_active_row.y_position > SCREEN_CONFIG.HEIGHT) {
+                this.trigger_game_over_b(current_active_row);
+                return;
+            }
+        }
+
         const visible_incomplete_rows = this.game_data.rows.filter(row => {
             return !row.is_completed && is_row_visible(row);
         });
@@ -118,12 +126,6 @@ export class GameStateManager {
             visible_incomplete_rows.sort((a, b) => b.y_position - a.y_position);
 
             const active_row = visible_incomplete_rows[0];
-
-            const row_bottom = active_row.y_position + active_row.height;
-            if (row_bottom < 0 && active_row.row_type !== RowType.START) {
-                this.trigger_game_over_b(active_row);
-                return;
-            }
 
             this.game_data.active_row_index = active_row.row_index;
         }
@@ -300,9 +302,20 @@ export class GameStateManager {
     private calculate_reposition_offset(): number {
         const completed_height = this.game_data.total_completed_height;
         const active_row = this.get_active_row();
-        const active_row_height = active_row ? active_row.height : 0;
 
-        return this.game_data.scroll_offset;
+        if (!active_row) {
+            return this.game_data.scroll_offset;
+        }
+
+        const active_row_height = active_row.height;
+        const base_row_height = SCREEN_CONFIG.BASE_ROW_HEIGHT;
+
+        const target_y = SCREEN_CONFIG.HEIGHT - completed_height - active_row_height - base_row_height;
+
+        const current_y = active_row.y_position;
+        const delta_y = target_y - current_y;
+
+        return this.game_data.scroll_offset + delta_y;
     }
 
     update_game_over_flash(current_time: number): void {
