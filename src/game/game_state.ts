@@ -144,7 +144,7 @@ export class GameStateManager {
         const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
 
         if (is_long_tile) {
-            if (row_bottom >= trigger_y) {
+            if (row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT >= trigger_y) {
                 for (const rect of active_row.rectangles) {
                     if (!rect.is_pressed && !rect.is_holding) {
                         rect.is_holding = true;
