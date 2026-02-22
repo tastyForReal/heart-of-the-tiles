@@ -4,6 +4,9 @@ import { GameStateManager } from "./game_state.js";
 import { InputHandler } from "./input_handler.js";
 import { SCREEN_CONFIG, GameState } from "./types.js";
 
+/**
+ * Orchestrates the main game loop (`requestAnimationFrame`) and bridges WebGPU rendering with pure game logic state.
+ */
 export class GameController {
     private gpu_context: GPUContext;
     private renderer: Renderer;
@@ -22,6 +25,10 @@ export class GameController {
         this.input_handler = new InputHandler();
     }
 
+    /**
+     * Bootstraps the WebGPU context, renderer pipelines, and input listeners.
+     * Expects a valid HTMLCanvasElement. Returns false if WebGPU is unsupported.
+     */
     async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
         this.canvas = canvas;
 
@@ -58,6 +65,11 @@ export class GameController {
         });
     }
 
+    /**
+     * Routes the physical pointer click or keyboard tap into the game logic.
+     * Ignores input if the game is already in a GAME OVER state, or if keyboard input
+     * was queued (to avoid double-processing via simulated click events on some platforms).
+     */
     private handle_slot_press(slot_index: number, screen_x: number, screen_y: number): void {
         const state = this.game_state.get_game_data();
 

@@ -101,6 +101,11 @@ export class GameStateManager {
         this.update_active_row();
     }
 
+    /**
+     * Re-evaluates which row is currently "active" (i.e. the lowest, uncompleted visible row).
+     * Triggers the out-of-bounds GAME OVER if an uncompleted row falls completely off the visible screen
+     * (meaning its Y coordinate plus the global scroll offset exceeds the screen height).
+     */
     private update_active_row(): void {
         const current_active_row = this.get_active_row();
         if (current_active_row && current_active_row.row_type !== RowType.START) {
@@ -132,6 +137,10 @@ export class GameStateManager {
         return null;
     }
 
+    /**
+     * Resolves click/tap input. Checks starting conditions, then delegates to the active row.
+     * Clicks matching the empty space around the active row trigger a misclick GAME OVER.
+     */
     handle_slot_press(slot_index: number, screen_x: number, screen_y: number): boolean {
         if (this.is_game_over()) {
             return false;
@@ -293,6 +302,10 @@ export class GameStateManager {
         };
     }
 
+    /**
+     * Calculates the target scroll offset required to properly animate the rows
+     * back up when they fall out of bounds, so the failed row lands cleanly above the bottom edge.
+     */
     private calculate_reposition_offset(): number {
         const active_row = this.get_active_row();
 
@@ -336,6 +349,7 @@ export class GameStateManager {
         const elapsed = current_time - animation.start_time;
         const progress = Math.min(elapsed / animation.duration, 1.0);
 
+        // Easing function for smoother scroll repositioning
         const eased_progress = 1 - Math.pow(1 - progress, 3);
 
         const new_offset = animation.start_offset + (animation.target_offset - animation.start_offset) * eased_progress;

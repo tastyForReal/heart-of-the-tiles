@@ -7,6 +7,11 @@ interface RectangleVertex {
     color: [number, number, number, number];
 }
 
+/**
+ * Manages the WebGPU rendering pipelines and buffers.
+ * Translates the pure logical game state into triangle-list vertices,
+ * utilizing a flat-colored shader pipeline for rendering paths and particles.
+ */
 export class Renderer {
     private gpu_context: GPUContext;
     private rectangle_pipeline: GPURenderPipeline | null = null;
@@ -51,6 +56,8 @@ export class Renderer {
             fn vertexMain(input: VertexInput) -> VertexOutput {
                 var output: VertexOutput;
                 
+                // Transform canvas pixel space (top-left origin) to WebGPU Normalized Device Coordinates (NDC)
+                // NDC: [-1, -1] bottom-left, [1, 1] top-right
                 let x = (input.position.x / uniforms.screen_width) * 2.0 - 1.0;
                 let y = 1.0 - (input.position.y / uniforms.screen_height) * 2.0;
                 output.position = vec4<f32>(x, y, 0.0, 1.0);
@@ -217,6 +224,11 @@ export class Renderer {
         ];
     }
 
+    /**
+     * Rebuilds the combined vertex buffer dynamically per-frame, then submits the draw call.
+     * Uses a single unified render pass with one pipeline and buffer strategy, optimizing for
+     * the relatively low polygon count of flat 2D shapes rather than relying on instancing.
+     */
     render(visible_rows: RowData[], particles: ParticleData[], game_over_indicator: RectangleData | null, scroll_offset: number): void {
         const device = this.gpu_context.get_device();
         const context = this.gpu_context.get_context();
