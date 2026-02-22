@@ -30,12 +30,6 @@ async function main(): Promise<void> {
         game_controller.resize(SCREEN_CONFIG.WIDTH, SCREEN_CONFIG.HEIGHT);
     });
 
-    document.addEventListener("keydown", (event: KeyboardEvent) => {
-        if (["d", "D", "f", "F", "j", "J", "k", "K"].includes(event.key)) {
-            game_controller.set_keyboard_input();
-        }
-    });
-
     game_controller.start();
 }
 

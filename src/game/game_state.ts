@@ -104,6 +104,20 @@ export class GameStateManager {
         const scroll_delta = scroll_speed * delta_time;
         this.game_data.scroll_offset += scroll_delta;
 
+        const active_row = this.get_active_row();
+        if (active_row) {
+            for (const rect of active_row.rectangles) {
+                if (rect.is_holding && !rect.is_pressed) {
+                    rect.progress += scroll_delta;
+                    if (rect.progress >= rect.height) {
+                        rect.progress = rect.height;
+                        rect.is_holding = false;
+                        this.complete_rectangle(rect, active_row, rect.y + this.game_data.scroll_offset, false);
+                    }
+                }
+            }
+        }
+
         this.update_active_row();
     }
 
@@ -155,18 +169,14 @@ export class GameStateManager {
         return null;
     }
 
-    /**
-     * Resolves click/tap input. Checks starting conditions, then delegates to the active row.
-     * Clicks matching the empty space around the active row trigger a misclick GAME OVER.
-     */
-    handle_slot_press(slot_index: number, screen_x: number, screen_y: number): boolean {
+    handle_slot_input(slot_index: number, screen_x: number, screen_y: number, is_down: boolean): boolean {
         if (this.is_game_over()) {
             return false;
         }
 
         const start_row = this.game_data.rows.find(r => r.row_type === RowType.START);
 
-        if (this.game_data.state === GameState.PAUSED && start_row && !start_row.is_completed) {
+        if (is_down && this.game_data.state === GameState.PAUSED && start_row && !start_row.is_completed) {
             const start_rect = start_row.rectangles[0];
             const start_screen_y = start_rect.y + this.game_data.scroll_offset;
             if (point_in_rect(screen_x, screen_y, start_rect.x, start_screen_y, start_rect.width, start_rect.height)) {
@@ -184,12 +194,36 @@ export class GameStateManager {
 
         const row_top = active_row.y_position + this.game_data.scroll_offset;
         const row_bottom = row_top + active_row.height;
-
         const pressed_rect = active_row.rectangles.find(r => r.slot_index === slot_index);
 
-        if (pressed_rect && !pressed_rect.is_pressed) {
-            this.press_rectangle(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
-            return true;
+        if (!is_down) {
+            if (pressed_rect && pressed_rect.is_holding && !pressed_rect.is_pressed) {
+                pressed_rect.is_holding = false;
+                if (pressed_rect.progress < pressed_rect.height) {
+                    pressed_rect.is_released_early = true;
+                    this.complete_rectangle(
+                        pressed_rect,
+                        active_row,
+                        pressed_rect.y + this.game_data.scroll_offset,
+                        true,
+                    );
+                }
+            }
+            return false;
+        }
+
+        if (pressed_rect && !pressed_rect.is_pressed && !pressed_rect.is_holding) {
+            const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
+            if (is_long_tile) {
+                const hit_zone_top = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
+                if (screen_y >= hit_zone_top && screen_y <= row_bottom) {
+                    pressed_rect.is_holding = true;
+                }
+                return true;
+            } else {
+                this.press_rectangle(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
+                return true;
+            }
         } else if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
             this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
             return false;
@@ -198,7 +232,7 @@ export class GameStateManager {
         return false;
     }
 
-    handle_keyboard_press(slot_index: number): boolean {
+    handle_keyboard_input(slot_index: number, is_down: boolean): boolean {
         if (this.is_game_over()) {
             return false;
         }
@@ -211,17 +245,37 @@ export class GameStateManager {
         const row_bottom = active_row.y_position + this.game_data.scroll_offset + active_row.height;
         const timing_zone = SCREEN_CONFIG.HEIGHT / 2;
 
+        const pressed_rect = active_row.rectangles.find(r => r.slot_index === slot_index);
+
+        if (!is_down) {
+            if (pressed_rect && pressed_rect.is_holding && !pressed_rect.is_pressed) {
+                pressed_rect.is_holding = false;
+                if (pressed_rect.progress < pressed_rect.height) {
+                    pressed_rect.is_released_early = true;
+                    this.complete_rectangle(
+                        pressed_rect,
+                        active_row,
+                        pressed_rect.y + this.game_data.scroll_offset,
+                        true,
+                    );
+                }
+            }
+            return false;
+        }
+
         if (row_bottom < timing_zone) {
             return false;
         }
 
-        const pressed_rect = active_row.rectangles.find(r => r.slot_index === slot_index);
-
-        if (pressed_rect && !pressed_rect.is_pressed) {
-            const screen_x = pressed_rect.x + pressed_rect.width / 2;
-            const screen_y = pressed_rect.y + this.game_data.scroll_offset + pressed_rect.height / 2;
-            this.press_rectangle(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
-            return true;
+        if (pressed_rect && !pressed_rect.is_pressed && !pressed_rect.is_holding) {
+            const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
+            if (is_long_tile) {
+                pressed_rect.is_holding = true;
+                return true;
+            } else {
+                this.press_rectangle(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
+                return true;
+            }
         } else if (!pressed_rect) {
             const column_width = SCREEN_CONFIG.WIDTH / 4;
             const screen_x = slot_index * column_width + column_width / 2;
@@ -233,13 +287,17 @@ export class GameStateManager {
         return false;
     }
 
-    private press_rectangle(rect: RectangleData, row: RowData, screen_y: number): void {
+    private complete_rectangle(rect: RectangleData, row: RowData, screen_y: number, early_release: boolean): void {
         rect.is_pressed = true;
-        rect.opacity = 0.25;
-
-        this.particle_system.add_debris(rect.x, screen_y, rect.width, rect.height, 20);
-
+        if (!early_release) {
+            rect.opacity = 0.25;
+            this.particle_system.add_debris(rect.x, screen_y, rect.width, rect.height, 20);
+        }
         this.check_row_completion(row);
+    }
+
+    private press_rectangle(rect: RectangleData, row: RowData, screen_y: number): void {
+        this.complete_rectangle(rect, row, screen_y, false);
     }
 
     private check_row_completion(row: RowData): void {
@@ -292,6 +350,9 @@ export class GameStateManager {
             is_pressed: false,
             is_game_over_indicator: true,
             flash_state: true,
+            is_holding: false,
+            progress: 0,
+            is_released_early: false,
         };
 
         this.game_data.game_over_flash = {

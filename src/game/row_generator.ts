@@ -36,6 +36,9 @@ export function create_rectangle(
         is_pressed: false,
         is_game_over_indicator: false,
         flash_state: false,
+        is_holding: false,
+        progress: 0,
+        is_released_early: false,
     };
 }
 

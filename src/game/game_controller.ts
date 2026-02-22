@@ -2,7 +2,7 @@ import { GPUContext } from "../renderers/gpu_context.js";
 import { Renderer } from "../renderers/renderer.js";
 import { GameStateManager } from "./game_state.js";
 import { InputHandler } from "./input_handler.js";
-import { SCREEN_CONFIG, GameState } from "./types.js";
+import { SCREEN_CONFIG, GameState, InputType } from "./types.js";
 
 /**
  * Orchestrates the main game loop (`requestAnimationFrame`) and bridges WebGPU rendering with pure game logic state.
@@ -16,7 +16,6 @@ export class GameController {
     private last_frame_time: number = 0;
     private is_running: boolean = false;
     private animation_frame_id: number | null = null;
-    private is_keyboard_input: boolean = false;
 
     constructor() {
         this.gpu_context = new GPUContext();
@@ -52,9 +51,11 @@ export class GameController {
     }
 
     private setup_input_callbacks(): void {
-        this.input_handler.set_slot_press_callback((slot_index, screen_x, screen_y) => {
-            this.handle_slot_press(slot_index, screen_x, screen_y);
-        });
+        this.input_handler.set_slot_input_callback(
+            (slot_index: number, screen_x: number, screen_y: number, is_down: boolean, input_type: InputType) => {
+                this.handle_slot_input(slot_index, screen_x, screen_y, is_down, input_type);
+            },
+        );
 
         this.input_handler.set_pause_callback(() => {
             this.handle_pause();
@@ -70,7 +71,13 @@ export class GameController {
      * Ignores input if the game is already in a GAME OVER state, or if keyboard input
      * was queued (to avoid double-processing via simulated click events on some platforms).
      */
-    private handle_slot_press(slot_index: number, screen_x: number, screen_y: number): void {
+    private handle_slot_input(
+        slot_index: number,
+        screen_x: number,
+        screen_y: number,
+        is_down: boolean,
+        input_type: InputType,
+    ): void {
         const state = this.game_state.get_game_data();
 
         if (
@@ -78,15 +85,13 @@ export class GameController {
             state.state === GameState.GAME_OVER_OUT_OF_BOUNDS ||
             state.state === GameState.GAME_WON
         ) {
-            this.is_keyboard_input = false;
             return;
         }
 
-        if (this.is_keyboard_input) {
-            this.game_state.handle_keyboard_press(slot_index);
-            this.is_keyboard_input = false;
+        if (input_type === InputType.KEYBOARD) {
+            this.game_state.handle_keyboard_input(slot_index, is_down);
         } else {
-            this.game_state.handle_slot_press(slot_index, screen_x, screen_y);
+            this.game_state.handle_slot_input(slot_index, screen_x, screen_y, is_down);
         }
     }
 
@@ -96,11 +101,6 @@ export class GameController {
 
     private handle_reset(): void {
         this.game_state.reset();
-        this.is_keyboard_input = false;
-    }
-
-    set_keyboard_input(): void {
-        this.is_keyboard_input = true;
     }
 
     start(): void {

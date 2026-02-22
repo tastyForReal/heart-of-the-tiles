@@ -33,6 +33,9 @@ export interface RectangleData {
     is_pressed: boolean;
     is_game_over_indicator: boolean;
     flash_state: boolean;
+    is_holding: boolean;
+    progress: number;
+    is_released_early: boolean;
 }
 
 export interface RowData {

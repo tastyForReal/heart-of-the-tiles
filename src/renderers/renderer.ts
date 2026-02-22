@@ -176,7 +176,7 @@ export class Renderer {
 
         const y = rect.y + scroll_offset;
 
-        return [
+        const vertices: RectangleVertex[] = [
             { position: [rect.x, y], color },
             { position: [rect.x + rect.width, y], color },
             { position: [rect.x + rect.width, y + rect.height], color },
@@ -185,6 +185,70 @@ export class Renderer {
             { position: [rect.x + rect.width, y + rect.height], color },
             { position: [rect.x, y + rect.height], color },
         ];
+
+        if (rect.progress > 0 && rect.progress < rect.height) {
+            const progress_color: [number, number, number, number] = [1, 1, 0, 1]; // YELLOW
+
+            const row_bottom = y + rect.height;
+            const prog_y = row_bottom - rect.progress;
+
+            const radius = rect.width / 2;
+            const center_x = rect.x + radius;
+            const center_y = prog_y + radius;
+
+            const body_top = Math.min(center_y, row_bottom);
+
+            if (body_top < row_bottom) {
+                vertices.push(
+                    { position: [rect.x, body_top], color: progress_color },
+                    { position: [rect.x + rect.width, body_top], color: progress_color },
+                    { position: [rect.x + rect.width, row_bottom], color: progress_color },
+                    { position: [rect.x, body_top], color: progress_color },
+                    { position: [rect.x + rect.width, row_bottom], color: progress_color },
+                    { position: [rect.x, row_bottom], color: progress_color },
+                );
+            }
+
+            const segments = 16;
+            for (let i = 0; i < segments; i++) {
+                const theta1 = (i / segments) * Math.PI;
+                const theta2 = ((i + 1) / segments) * Math.PI;
+
+                const orig_p1x = center_x + radius * Math.cos(theta1);
+                const orig_p1y = center_y - radius * Math.sin(theta1);
+
+                const orig_p2x = center_x + radius * Math.cos(theta2);
+                const orig_p2y = center_y - radius * Math.sin(theta2);
+
+                const clip_point = (px: number, py: number) => {
+                    if (py > row_bottom) {
+                        if (Math.abs(py - center_y) < 0.001) {
+                            return [px, row_bottom];
+                        }
+                        const t = (row_bottom - center_y) / (py - center_y);
+                        if (t < 0 || t > 1) {
+                            return [px, row_bottom];
+                        }
+                        return [center_x + t * (px - center_x), row_bottom];
+                    }
+                    return [px, py];
+                };
+
+                const [p1x, p1y] = clip_point(orig_p1x, orig_p1y);
+                const [p2x, p2y] = clip_point(orig_p2x, orig_p2y);
+
+                let cy = center_y;
+                if (cy > row_bottom) cy = row_bottom;
+
+                vertices.push(
+                    { position: [center_x, cy], color: progress_color },
+                    { position: [p1x, p1y], color: progress_color },
+                    { position: [p2x, p2y], color: progress_color },
+                );
+            }
+        }
+
+        return vertices;
     }
 
     private create_grid_line_vertices(x: number): RectangleVertex[] {

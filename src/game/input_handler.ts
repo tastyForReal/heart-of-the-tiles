@@ -1,12 +1,18 @@
 import { KEY_SLOT_MAP, InputType, SCREEN_CONFIG } from "./types.js";
 
-export type SlotPressCallback = (slot_index: number, screen_x: number, screen_y: number) => void;
+export type SlotInputCallback = (
+    slot_index: number,
+    screen_x: number,
+    screen_y: number,
+    is_down: boolean,
+    input_type: InputType,
+) => void;
 export type PauseCallback = () => void;
 export type ResetCallback = () => void;
 
 export class InputHandler {
     private canvas: HTMLCanvasElement | null = null;
-    private on_slot_press: SlotPressCallback | null = null;
+    private on_slot_input: SlotInputCallback | null = null;
     private on_pause: PauseCallback | null = null;
     private on_reset: ResetCallback | null = null;
 
@@ -16,8 +22,8 @@ export class InputHandler {
         this.setup_keyboard_handlers();
     }
 
-    set_slot_press_callback(callback: SlotPressCallback): void {
-        this.on_slot_press = callback;
+    set_slot_input_callback(callback: SlotInputCallback): void {
+        this.on_slot_input = callback;
     }
 
     set_pause_callback(callback: PauseCallback): void {
@@ -33,20 +39,43 @@ export class InputHandler {
             return;
         }
 
-        this.canvas.addEventListener("click", (event: MouseEvent) => {
-            if (!this.canvas || !this.on_slot_press) {
+        const handle_pointer_event = (event: PointerEvent | MouseEvent | TouchEvent, is_down: boolean) => {
+            if (!this.canvas || !this.on_slot_input) {
                 return;
             }
 
+            event.preventDefault();
+
+            let clientX, clientY;
+            if (window.TouchEvent && event instanceof TouchEvent) {
+                if (event.changedTouches.length > 0) {
+                    clientX = event.changedTouches[0].clientX;
+                    clientY = event.changedTouches[0].clientY;
+                } else {
+                    return;
+                }
+            } else {
+                clientX = (event as MouseEvent).clientX;
+                clientY = (event as MouseEvent).clientY;
+            }
+
             const rect = this.canvas.getBoundingClientRect();
-            const screen_x = event.clientX - rect.left;
-            const screen_y = event.clientY - rect.top;
+            const screen_x = clientX - rect.left;
+            const screen_y = clientY - rect.top;
 
             const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
             const slot_index = Math.floor(screen_x / column_width);
 
-            this.on_slot_press(slot_index, screen_x, screen_y);
-        });
+            // Limit to valid slots
+            if (slot_index < 0 || slot_index >= SCREEN_CONFIG.COLUMN_COUNT) return;
+
+            this.on_slot_input(slot_index, screen_x, screen_y, is_down, InputType.MOUSE_CLICK);
+        };
+
+        this.canvas.addEventListener("mousedown", e => handle_pointer_event(e, true));
+        this.canvas.addEventListener("touchstart", e => handle_pointer_event(e, true), { passive: false });
+        window.addEventListener("mouseup", e => handle_pointer_event(e, false));
+        window.addEventListener("touchend", e => handle_pointer_event(e, false), { passive: false });
     }
 
     private setup_keyboard_handlers(): void {
@@ -71,13 +100,29 @@ export class InputHandler {
 
             if (key in KEY_SLOT_MAP) {
                 event.preventDefault();
+                if (event.repeat) return; // Ignore key repeat
                 const slot_index = KEY_SLOT_MAP[key];
-                if (this.on_slot_press) {
+                if (this.on_slot_input) {
                     const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
                     const screen_x = slot_index * column_width + column_width / 2;
                     const screen_y = SCREEN_CONFIG.HEIGHT / 2;
 
-                    this.on_slot_press(slot_index, screen_x, screen_y);
+                    this.on_slot_input(slot_index, screen_x, screen_y, true, InputType.KEYBOARD);
+                }
+            }
+        });
+
+        document.addEventListener("keyup", (event: KeyboardEvent) => {
+            const key = event.key;
+            if (key in KEY_SLOT_MAP) {
+                event.preventDefault();
+                const slot_index = KEY_SLOT_MAP[key];
+                if (this.on_slot_input) {
+                    const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
+                    const screen_x = slot_index * column_width + column_width / 2;
+                    const screen_y = SCREEN_CONFIG.HEIGHT / 2;
+
+                    this.on_slot_input(slot_index, screen_x, screen_y, false, InputType.KEYBOARD);
                 }
             }
         });
