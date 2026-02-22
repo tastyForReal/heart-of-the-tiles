@@ -16,10 +16,10 @@ export const COLORS = {
 } as const;
 
 export enum RowType {
-    SINGLE = "single",
-    DOUBLE = "double",
-    EMPTY = "empty",
-    START = "start",
+    SINGLE = 0,
+    DOUBLE = 1,
+    EMPTY = 2,
+    START = 3,
 }
 
 export interface RectangleData {
@@ -61,12 +61,12 @@ export interface ParticleData {
 }
 
 export enum GameState {
-    PAUSED = "paused",
-    PLAYING = "playing",
-    GAME_OVER_MISCLICKED = "game_over_misclicked",
-    GAME_OVER_OUT_OF_BOUNDS = "game_over_out_of_bounds",
-    FLASHING = "flashing",
-    GAME_WON = "game_won",
+    PAUSED = 0,
+    PLAYING = 1,
+    GAME_OVER_MISCLICKED = 2,
+    GAME_OVER_OUT_OF_BOUNDS = 3,
+    FLASHING = 4,
+    GAME_WON = 5,
 }
 
 export interface GameOverFlashState {
@@ -100,8 +100,8 @@ export interface GameData {
 }
 
 export enum InputType {
-    MOUSE_CLICK = "mouse_click",
-    KEYBOARD = "keyboard",
+    MOUSE_CLICK = 0,
+    KEYBOARD = 1,
 }
 
 export interface InputEvent {
