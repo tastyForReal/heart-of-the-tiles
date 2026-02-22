@@ -47,7 +47,7 @@ export function create_start_row(): { row: RowData; slot_index: number } {
 
     const slot_index = random_int(0, 3);
 
-    const rectangle = create_rectangle(slot_index, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW_START, 1.0);
+    const rectangle = create_rectangle(slot_index, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
 
     return {
         row: {

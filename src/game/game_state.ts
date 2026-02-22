@@ -407,7 +407,7 @@ export class GameStateManager {
             y: active_row.y_position,
             width: column_width,
             height: active_row.height,
-            color: COLORS.RED_GAME_OVER,
+            color: COLORS.RED,
             opacity: 1.0,
             is_pressed: false,
             is_game_over_indicator: true,
