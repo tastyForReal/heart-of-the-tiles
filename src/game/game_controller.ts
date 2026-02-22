@@ -73,7 +73,11 @@ export class GameController {
     private handle_slot_press(slot_index: number, screen_x: number, screen_y: number): void {
         const state = this.game_state.get_game_data();
 
-        if (state.state === GameState.GAME_OVER_MISCLICKED || state.state === GameState.GAME_OVER_OUT_OF_BOUNDS) {
+        if (
+            state.state === GameState.GAME_OVER_MISCLICKED ||
+            state.state === GameState.GAME_OVER_OUT_OF_BOUNDS ||
+            state.state === GameState.GAME_WON
+        ) {
             this.is_keyboard_input = false;
             return;
         }
@@ -135,6 +139,7 @@ export class GameController {
         this.game_state.update_particles(delta_time);
         this.game_state.update_game_over_flash(current_time);
         this.game_state.update_game_over_animation(current_time);
+        this.game_state.update_game_won(current_time);
     }
 
     private render(): void {

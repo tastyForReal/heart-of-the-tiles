@@ -32,6 +32,7 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
         scroll_offset: 0,
         game_over_flash: null,
         game_over_animation: null,
+        game_won_time: null,
         last_single_slot: 0,
         last_double_slots: null,
         active_row_index: 0,
@@ -81,12 +82,17 @@ export class GameStateManager {
         return (
             this.game_data.state === GameState.PAUSED ||
             this.game_data.state === GameState.GAME_OVER_MISCLICKED ||
-            this.game_data.state === GameState.GAME_OVER_OUT_OF_BOUNDS
+            this.game_data.state === GameState.GAME_OVER_OUT_OF_BOUNDS ||
+            this.game_data.state === GameState.GAME_WON
         );
     }
 
     is_game_over(): boolean {
-        return this.game_data.state === GameState.GAME_OVER_MISCLICKED || this.game_data.state === GameState.GAME_OVER_OUT_OF_BOUNDS;
+        return (
+            this.game_data.state === GameState.GAME_OVER_MISCLICKED ||
+            this.game_data.state === GameState.GAME_OVER_OUT_OF_BOUNDS ||
+            this.game_data.state === GameState.GAME_WON
+        );
     }
 
     update_scroll(delta_time: number): void {
@@ -111,7 +117,19 @@ export class GameStateManager {
         if (current_active_row && current_active_row.row_type !== RowType.START) {
             const screen_y = current_active_row.y_position + this.game_data.scroll_offset;
             if (screen_y > SCREEN_CONFIG.HEIGHT) {
-                this.trigger_game_over_out_of_bounds(current_active_row);
+                if (!current_active_row.is_completed) {
+                    this.trigger_game_over_out_of_bounds(current_active_row);
+                    return;
+                }
+            }
+        }
+
+        const has_incomplete = this.game_data.rows.some(r => !r.is_completed);
+        if (!has_incomplete && this.game_data.rows.length > 0) {
+            const last_row = this.game_data.rows[this.game_data.rows.length - 1];
+            const last_row_screen_y = last_row.y_position + this.game_data.scroll_offset;
+            if (last_row_screen_y > SCREEN_CONFIG.HEIGHT) {
+                this.trigger_game_won();
                 return;
             }
         }
@@ -254,7 +272,12 @@ export class GameStateManager {
         return null;
     }
 
-    private trigger_game_over_misclicked(slot_index: number, screen_x: number, screen_y: number, active_row: RowData): void {
+    private trigger_game_over_misclicked(
+        slot_index: number,
+        screen_x: number,
+        screen_y: number,
+        active_row: RowData,
+    ): void {
         this.game_data.state = GameState.GAME_OVER_MISCLICKED;
 
         const column_width = SCREEN_CONFIG.WIDTH / 4;
@@ -319,6 +342,13 @@ export class GameStateManager {
         return SCREEN_CONFIG.HEIGHT - base_row_height - active_row_height - active_row.y_position;
     }
 
+    private trigger_game_won(): void {
+        if (this.game_data.state !== GameState.GAME_WON) {
+            this.game_data.state = GameState.GAME_WON;
+            this.game_data.game_won_time = performance.now();
+        }
+    }
+
     update_game_over_flash(current_time: number): void {
         const flash_state = this.game_data.game_over_flash;
         if (!flash_state || !flash_state.is_flashing) {
@@ -358,6 +388,14 @@ export class GameStateManager {
 
         if (progress >= 1.0) {
             animation.is_animating = false;
+        }
+    }
+
+    update_game_won(current_time: number): void {
+        if (this.game_data.state === GameState.GAME_WON && this.game_data.game_won_time !== null) {
+            if (current_time - this.game_data.game_won_time >= 1000) {
+                this.reset();
+            }
         }
     }
 

@@ -63,6 +63,7 @@ export enum GameState {
     GAME_OVER_MISCLICKED = "game_over_misclicked",
     GAME_OVER_OUT_OF_BOUNDS = "game_over_out_of_bounds",
     FLASHING = "flashing",
+    GAME_WON = "game_won",
 }
 
 export interface GameOverFlashState {
@@ -88,6 +89,7 @@ export interface GameData {
     scroll_offset: number;
     game_over_flash: GameOverFlashState | null;
     game_over_animation: GameOverAnimationState | null;
+    game_won_time: number | null;
     last_single_slot: number;
     last_double_slots: [number, number] | null;
     active_row_index: number;

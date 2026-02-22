@@ -229,7 +229,12 @@ export class Renderer {
      * Uses a single unified render pass with one pipeline and buffer strategy, optimizing for
      * the relatively low polygon count of flat 2D shapes rather than relying on instancing.
      */
-    render(visible_rows: RowData[], particles: ParticleData[], game_over_indicator: RectangleData | null, scroll_offset: number): void {
+    render(
+        visible_rows: RowData[],
+        particles: ParticleData[],
+        game_over_indicator: RectangleData | null,
+        scroll_offset: number,
+    ): void {
         const device = this.gpu_context.get_device();
         const context = this.gpu_context.get_context();
 
