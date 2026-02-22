@@ -1,6 +1,6 @@
 import { GPUContext } from "../renderers/gpu_context.js";
 import { Renderer } from "../renderers/renderer.js";
-import { GameStateManager } from "./game_state.js";
+import { GameStateManager, GameConfig, DEFAULT_GAME_CONFIG } from "./game_state.js";
 import { InputHandler } from "./input_handler.js";
 import { SCREEN_CONFIG, GameState, InputType } from "./types.js";
 
@@ -17,10 +17,11 @@ export class GameController {
     private is_running: boolean = false;
     private animation_frame_id: number | null = null;
 
-    constructor() {
+    constructor(config?: Partial<GameConfig>) {
         this.gpu_context = new GPUContext();
         this.renderer = new Renderer(this.gpu_context);
-        this.game_state = new GameStateManager();
+        const merged_config = { ...DEFAULT_GAME_CONFIG, ...config };
+        this.game_state = new GameStateManager(merged_config);
         this.input_handler = new InputHandler();
     }
 
@@ -135,6 +136,7 @@ export class GameController {
     }
 
     private update(delta_time: number, current_time: number): void {
+        this.game_state.update_bot();
         this.game_state.update_scroll(delta_time);
         this.game_state.update_particles(delta_time);
         this.game_state.update_game_over_flash(current_time);

@@ -12,7 +12,10 @@ async function main(): Promise<void> {
     canvas.width = SCREEN_CONFIG.WIDTH;
     canvas.height = SCREEN_CONFIG.HEIGHT;
 
-    const game_controller = new GameController();
+    const url_params = new URLSearchParams(window.location.search);
+    const is_bot_active = url_params.has("bot") || localStorage.getItem("bot") === "true";
+
+    const game_controller = new GameController({ is_bot_active });
 
     const initialized = await game_controller.initialize(canvas);
 

@@ -15,10 +15,12 @@ import { point_in_rect } from "../utils/math_utils.js";
 
 export interface GameConfig {
     row_count: number;
+    is_bot_active: boolean;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
     row_count: DEFAULT_ROW_COUNT,
+    is_bot_active: false,
 };
 
 export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONFIG): GameData {
@@ -71,6 +73,8 @@ export class GameStateManager {
     }
 
     toggle_pause(): void {
+        if (this.config.is_bot_active) return;
+
         if (this.game_data.state === GameState.PLAYING) {
             this.game_data.state = GameState.PAUSED;
         } else if (this.game_data.state === GameState.PAUSED) {
@@ -119,6 +123,43 @@ export class GameStateManager {
         }
 
         this.update_active_row();
+    }
+
+    update_bot(): void {
+        if (!this.config.is_bot_active || this.is_game_over()) {
+            return;
+        }
+
+        const active_row = this.get_active_row();
+        if (!active_row) return;
+
+        if (active_row.row_type === RowType.START) {
+            return;
+        }
+
+        const row_top = active_row.y_position + this.game_data.scroll_offset;
+        const row_bottom = row_top + active_row.height;
+        const trigger_y = SCREEN_CONFIG.HEIGHT / 2;
+
+        const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
+
+        if (is_long_tile) {
+            if (row_bottom >= trigger_y) {
+                for (const rect of active_row.rectangles) {
+                    if (!rect.is_pressed && !rect.is_holding) {
+                        rect.is_holding = true;
+                    }
+                }
+            }
+        } else {
+            if (row_top >= trigger_y) {
+                for (const rect of active_row.rectangles) {
+                    if (!rect.is_pressed) {
+                        this.complete_rectangle(rect, active_row, rect.y + this.game_data.scroll_offset, false);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -196,6 +237,15 @@ export class GameStateManager {
         const row_bottom = row_top + active_row.height;
         const pressed_rect = active_row.rectangles.find(r => r.slot_index === slot_index);
 
+        if (this.config.is_bot_active) {
+            if (is_down) {
+                if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
+                    this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
+                }
+            }
+            return false;
+        }
+
         if (!is_down) {
             if (pressed_rect && pressed_rect.is_holding && !pressed_rect.is_pressed) {
                 pressed_rect.is_holding = false;
@@ -246,6 +296,18 @@ export class GameStateManager {
         const timing_zone = SCREEN_CONFIG.HEIGHT / 2;
 
         const pressed_rect = active_row.rectangles.find(r => r.slot_index === slot_index);
+
+        if (this.config.is_bot_active) {
+            if (is_down) {
+                if (!pressed_rect && row_bottom >= timing_zone) {
+                    const column_width = SCREEN_CONFIG.WIDTH / 4;
+                    const screen_x = slot_index * column_width + column_width / 2;
+                    const screen_y = active_row.y_position + this.game_data.scroll_offset + active_row.height / 2;
+                    this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
+                }
+            }
+            return false;
+        }
 
         if (!is_down) {
             if (pressed_rect && pressed_rect.is_holding && !pressed_rect.is_pressed) {

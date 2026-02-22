@@ -6,7 +6,9 @@
     "scripts": {
         "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json",
         "start": "electron .",
-        "dev": "bun run build && electron ."
+        "start:bot": "electron . --bot",
+        "dev": "bun run build && electron .",
+        "dev:bot": "bun run build && electron . --bot"
     },
     "keywords": [
         "electron",

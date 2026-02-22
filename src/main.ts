@@ -29,13 +29,15 @@ function create_window(): void {
     });
 
     const html_path = path.join(__dirname, "../index.html");
-    main_window.loadFile(html_path).catch(error => {
+    const is_bot_active = process.argv.includes("--bot");
+
+    main_window.loadFile(html_path, { query: is_bot_active ? { bot: "true" } : {} }).catch(error => {
         console.error("Failed to load HTML file:", error);
     });
 
     main_window.setMenuBarVisibility(false);
     // main_window.webContents.openDevTools();
-    main_window.on("closed", () => {});
+    main_window.on("closed", () => { });
 }
 
 app.whenReady().then(() => {
