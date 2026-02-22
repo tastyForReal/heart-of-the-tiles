@@ -37,7 +37,7 @@ function create_window(): void {
 
     main_window.setMenuBarVisibility(false);
     // main_window.webContents.openDevTools();
-    main_window.on("closed", () => { });
+    main_window.on("closed", () => {});
 }
 
 app.whenReady().then(() => {
