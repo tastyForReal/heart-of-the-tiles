@@ -3,8 +3,9 @@ export const SCREEN_CONFIG = {
     HEIGHT: 720,
     COLUMN_COUNT: 4,
     BASE_ROW_HEIGHT: 180,
-    SCROLL_SPEED: 540,
+    SCROLL_SPEED: 540, // Default scroll speed (pixels per second)
     GRID_LINE_WIDTH: 1,
+    DEFAULT_TPS: 3, // Default tiles per second when no level is loaded
 } as const;
 
 export const COLORS = {
@@ -97,6 +98,21 @@ export interface GameData {
     last_double_slots: [number, number] | null;
     active_row_index: number;
     completed_rows_count: number;
+    // TPS (Tiles Per Second) related fields
+    current_tps: number;
+    current_music_index: number;
+    musics_metadata: MusicMetadata[];
+}
+
+/**
+ * Metadata for a music section within a level
+ */
+export interface MusicMetadata {
+    id: number;
+    tps: number; // Tiles per second
+    start_row_index: number; // Index of first row in combined array (excluding start row)
+    end_row_index: number; // Index after last row (exclusive)
+    row_count: number; // Number of rows in this music
 }
 
 export enum InputType {

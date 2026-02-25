@@ -8,10 +8,19 @@ import {
     GameOverAnimationState,
     SCREEN_CONFIG,
     COLORS,
+    MusicMetadata,
 } from "./types.js";
-import { generate_all_rows, find_active_row, is_row_visible, DEFAULT_ROW_COUNT } from "./row_generator.js";
+import {
+    generate_all_rows,
+    find_active_row,
+    is_row_visible,
+    DEFAULT_ROW_COUNT,
+    create_rectangle,
+    calculate_column_width,
+} from "./row_generator.js";
 import { ParticleSystem } from "./particle_system.js";
 import { point_in_rect } from "../utils/math_utils.js";
+import { RowTypeResult, LevelData } from "./level_loader.js";
 
 export interface GameConfig {
     row_count: number;
@@ -39,7 +48,115 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
         last_double_slots: null,
         active_row_index: 0,
         completed_rows_count: 0,
+        // TPS defaults
+        current_tps: SCREEN_CONFIG.DEFAULT_TPS,
+        current_music_index: 0,
+        musics_metadata: [],
     };
+}
+
+/**
+ * Determines the occupied columns for a double row based on the preceding row type.
+ * Ensures the generated pattern maintains reachable paths for the player without awkward cross-screen jumps.
+ */
+function determine_double_slots(preceding_row: RowData | null): [number, number] {
+    if (preceding_row === null) {
+        return Math.random() < 0.5 ? [0, 2] : [1, 3];
+    }
+
+    if (preceding_row.row_type === RowType.SINGLE || preceding_row.row_type === RowType.START) {
+        const single_slot = preceding_row.rectangles[0].slot_index;
+
+        if (single_slot === 0 || single_slot === 2) {
+            return [1, 3];
+        } else {
+            return [0, 2];
+        }
+    }
+
+    if (preceding_row.row_type === RowType.DOUBLE) {
+        const occupied_slots = preceding_row.rectangles.map(r => r.slot_index);
+
+        if (occupied_slots.includes(0) && occupied_slots.includes(2)) {
+            return [1, 3];
+        } else {
+            return [0, 2];
+        }
+    }
+
+    return Math.random() < 0.5 ? [0, 2] : [1, 3];
+}
+
+/**
+ * Generates rows from RowTypeResult array (from level loader)
+ */
+export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowData[] {
+    const rows: RowData[] = [];
+
+    // Create start row first
+    const start_y = SCREEN_CONFIG.HEIGHT - SCREEN_CONFIG.BASE_ROW_HEIGHT * 2;
+    const start_slot = Math.floor(Math.random() * 4);
+    const start_rectangle = create_rectangle(start_slot, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
+
+    rows.push({
+        row_index: 0,
+        row_type: RowType.START,
+        height_multiplier: 1,
+        y_position: start_y,
+        height: SCREEN_CONFIG.BASE_ROW_HEIGHT,
+        rectangles: [start_rectangle],
+        is_completed: false,
+        is_active: true,
+    });
+
+    let current_y = start_y;
+    let last_single_slot = start_slot;
+
+    for (let i = 0; i < level_rows.length; i++) {
+        const row_data = level_rows[i];
+        const row_height = row_data.height_multiplier * SCREEN_CONFIG.BASE_ROW_HEIGHT;
+        current_y -= row_height;
+
+        const row_index = i + 1; // +1 because start row is index 0
+        const preceding_row = rows[rows.length - 1]; // Get the last added row
+        let rectangles: RectangleData[] = [];
+
+        if (row_data.type === RowType.SINGLE) {
+            let slot: number;
+
+            // If preceded by a double, choose from the empty slots (gaps)
+            if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
+                const occupied = preceding_row.rectangles.map(r => r.slot_index);
+                const empty_slots = [0, 1, 2, 3].filter(s => !occupied.includes(s));
+                slot = empty_slots[Math.floor(Math.random() * empty_slots.length)];
+            } else {
+                // Otherwise, choose any slot except the last single slot
+                const available_slots = [0, 1, 2, 3].filter(s => s !== last_single_slot);
+                slot = available_slots[Math.floor(Math.random() * available_slots.length)];
+            }
+
+            rectangles = [create_rectangle(slot, current_y, row_height, COLORS.BLACK, 1.0)];
+            last_single_slot = slot;
+        } else if (row_data.type === RowType.DOUBLE) {
+            // Use preceding row to determine slots
+            const slots = determine_double_slots(preceding_row);
+            rectangles = slots.map(slot => create_rectangle(slot, current_y, row_height, COLORS.BLACK, 1.0));
+        }
+        // EMPTY rows have no rectangles
+
+        rows.push({
+            row_index: row_index,
+            row_type: row_data.type,
+            height_multiplier: row_data.height_multiplier,
+            y_position: current_y,
+            height: row_height,
+            rectangles,
+            is_completed: row_data.type === RowType.EMPTY,
+            is_active: false,
+        });
+    }
+
+    return rows;
 }
 
 export class GameStateManager {
@@ -63,6 +180,62 @@ export class GameStateManager {
 
     reset(): void {
         this.game_data = create_initial_game_state(this.config);
+        this.particle_system.clear();
+    }
+
+    /**
+     * Loads a complete level with rows and music metadata for dynamic TPS
+     */
+    load_level(level_data: LevelData): void {
+        const rows = generate_rows_from_level_data(level_data.rows);
+
+        // Determine initial TPS from first music
+        const initial_tps = level_data.musics.length > 0 ? level_data.musics[0].tps : SCREEN_CONFIG.DEFAULT_TPS;
+
+        this.game_data = {
+            state: GameState.PAUSED,
+            rows,
+            particles: [],
+            total_completed_height: 0,
+            scroll_offset: 0,
+            game_over_flash: null,
+            game_over_animation: null,
+            game_won_time: null,
+            last_single_slot: 0,
+            last_double_slots: null,
+            active_row_index: 0,
+            completed_rows_count: 0,
+            // TPS settings from level data
+            current_tps: initial_tps,
+            current_music_index: 0,
+            musics_metadata: level_data.musics,
+        };
+        this.particle_system.clear();
+    }
+
+    /**
+     * Loads custom rows from level data (backward compatibility)
+     */
+    load_custom_rows(level_rows: RowTypeResult[]): void {
+        const rows = generate_rows_from_level_data(level_rows);
+        this.game_data = {
+            state: GameState.PAUSED,
+            rows,
+            particles: [],
+            total_completed_height: 0,
+            scroll_offset: 0,
+            game_over_flash: null,
+            game_over_animation: null,
+            game_won_time: null,
+            last_single_slot: 0,
+            last_double_slots: null,
+            active_row_index: 0,
+            completed_rows_count: 0,
+            // Default TPS when no metadata
+            current_tps: SCREEN_CONFIG.DEFAULT_TPS,
+            current_music_index: 0,
+            musics_metadata: [],
+        };
         this.particle_system.clear();
     }
 
@@ -99,12 +272,55 @@ export class GameStateManager {
         );
     }
 
+    /**
+     * Calculates the current scroll speed based on TPS.
+     * TPS = tiles per second, where each tile is BASE_ROW_HEIGHT pixels.
+     * Scroll speed = TPS * BASE_ROW_HEIGHT (pixels per second)
+     */
+    private get_scroll_speed(): number {
+        return this.game_data.current_tps * SCREEN_CONFIG.BASE_ROW_HEIGHT;
+    }
+
+    /**
+     * Updates the current TPS based on which music section the active row belongs to.
+     * This is called during scroll updates to handle dynamic tempo changes.
+     */
+    private update_current_music(): void {
+        const musics = this.game_data.musics_metadata;
+        if (musics.length === 0) return;
+
+        const active_row = this.get_active_row();
+        if (!active_row || active_row.row_type === RowType.START) return;
+
+        // Row index 0 is the start row, so actual level rows start at index 1
+        // Convert to level row index (0-based for level rows)
+        const level_row_index = active_row.row_index - 1;
+
+        // Find which music section this row belongs to
+        for (let i = 0; i < musics.length; i++) {
+            const music = musics[i];
+            // start_row_index and end_row_index are already 0-based for level rows
+            if (level_row_index >= music.start_row_index && level_row_index < music.end_row_index) {
+                if (this.game_data.current_music_index !== i) {
+                    // Transitioned to a new music section
+                    this.game_data.current_music_index = i;
+                    this.game_data.current_tps = music.tps;
+                    console.log(`Music transition: Music ${music.id}, TPS: ${music.tps.toFixed(2)}`);
+                }
+                break;
+            }
+        }
+    }
+
     update_scroll(delta_time: number): void {
         if (this.is_paused() || this.is_game_over()) {
             return;
         }
 
-        const scroll_speed = SCREEN_CONFIG.SCROLL_SPEED;
+        // Update TPS based on current music section
+        this.update_current_music();
+
+        const scroll_speed = this.get_scroll_speed();
         const scroll_delta = scroll_speed * delta_time;
         this.game_data.scroll_offset += scroll_delta;
 

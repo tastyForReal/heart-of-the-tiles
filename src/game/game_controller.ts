@@ -3,6 +3,7 @@ import { Renderer } from "../renderers/renderer.js";
 import { GameStateManager, GameConfig, DEFAULT_GAME_CONFIG } from "./game_state.js";
 import { InputHandler } from "./input_handler.js";
 import { SCREEN_CONFIG, GameState, InputType } from "./types.js";
+import { LevelData, RowTypeResult } from "./level_loader.js";
 
 /**
  * Orchestrates the main game loop (`requestAnimationFrame`) and bridges WebGPU rendering with pure game logic state.
@@ -154,5 +155,19 @@ export class GameController {
 
     resize(width: number, height: number): void {
         this.renderer.resize(width, height);
+    }
+
+    /**
+     * Loads a complete level with rows and music metadata for dynamic TPS
+     */
+    load_level(level_data: LevelData): void {
+        this.game_state.load_level(level_data);
+    }
+
+    /**
+     * Loads custom rows only (backward compatibility, uses default TPS)
+     */
+    load_custom_rows(level_rows: RowTypeResult[]): void {
+        this.game_state.load_custom_rows(level_rows);
     }
 }

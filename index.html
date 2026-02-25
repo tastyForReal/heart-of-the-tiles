@@ -90,6 +90,57 @@
                 text-align: center;
                 margin-top: 10px;
             }
+
+            .load_level_button {
+                position: absolute;
+                top: 40px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: #4caf50;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 12px;
+                cursor: pointer;
+                z-index: 20;
+                font-family: inherit;
+                transition: background-color 0.2s ease;
+            }
+
+            .load_level_button:hover {
+                background-color: #45a049;
+            }
+
+            .load_level_button:active {
+                background-color: #3d8b40;
+            }
+
+            #level_file_input {
+                display: none;
+            }
+
+            .load_status {
+                position: absolute;
+                top: 70px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: rgba(0, 0, 0, 0.8);
+                color: #fff;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 11px;
+                z-index: 20;
+                display: none;
+            }
+
+            .load_status.error {
+                background-color: rgba(244, 67, 54, 0.9);
+            }
+
+            .load_status.success {
+                background-color: rgba(76, 175, 80, 0.9);
+            }
         </style>
     </head>
     <body>
@@ -101,6 +152,9 @@
                     ><span class="key">K</span> Columns &nbsp;|&nbsp; <span class="key">SPACE</span> Pause &nbsp;|&nbsp;
                     <span class="key">R</span> Reset
                 </div>
+                <button class="load_level_button" id="load_level_btn">Load Level JSON</button>
+                <input type="file" id="level_file_input" accept=".json,application/json" />
+                <div class="load_status" id="load_status"></div>
             </div>
             <div id="error_message"></div>
         </div>
