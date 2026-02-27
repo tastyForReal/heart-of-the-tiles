@@ -1,6 +1,7 @@
 import { GameController } from "./game/game_controller.js";
 import { SCREEN_CONFIG } from "./game/types.js";
 import { select_and_load_music_file, LevelData } from "./game/level_loader.js";
+import { get_audio_manager } from "./game/audio_manager.js";
 
 async function main(): Promise<void> {
     const canvas = document.getElementById("game_canvas") as HTMLCanvasElement;
@@ -29,6 +30,21 @@ async function main(): Promise<void> {
         }
         return;
     }
+
+    // Initialize audio manager (preload audio samples)
+    const audio_manager = get_audio_manager();
+    audio_manager
+        .initialize()
+        .then(success => {
+            if (success) {
+                console.log("Audio manager initialized successfully");
+            } else {
+                console.warn("Audio manager initialization failed");
+            }
+        })
+        .catch(error => {
+            console.warn("Audio manager initialization error:", error);
+        });
 
     window.addEventListener("resize", () => {
         game_controller.resize(SCREEN_CONFIG.WIDTH, SCREEN_CONFIG.HEIGHT);

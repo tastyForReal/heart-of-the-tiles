@@ -21,6 +21,7 @@ import {
 import { ParticleSystem } from "./particle_system.js";
 import { point_in_rect } from "../utils/math_utils.js";
 import { RowTypeResult, LevelData } from "./level_loader.js";
+import { get_audio_manager, AudioManager } from "./audio_manager.js";
 
 export interface GameConfig {
     row_count: number;
@@ -163,11 +164,13 @@ export class GameStateManager {
     private game_data: GameData;
     private particle_system: ParticleSystem;
     private config: GameConfig;
+    private audio_manager: AudioManager;
 
     constructor(config: GameConfig = DEFAULT_GAME_CONFIG) {
         this.config = config;
         this.game_data = create_initial_game_state(config);
         this.particle_system = new ParticleSystem();
+        this.audio_manager = get_audio_manager();
     }
 
     get_game_data(): GameData {
@@ -181,6 +184,7 @@ export class GameStateManager {
     reset(): void {
         this.game_data = create_initial_game_state(this.config);
         this.particle_system.clear();
+        this.audio_manager.stop_all_samples();
     }
 
     /**
@@ -364,6 +368,8 @@ export class GameStateManager {
                 for (const rect of active_row.rectangles) {
                     if (!rect.is_pressed && !rect.is_holding) {
                         rect.is_holding = true;
+                        // Play sound when bot starts holding a long tile
+                        this.audio_manager.play_random_sample();
                     }
                 }
             }
@@ -371,7 +377,8 @@ export class GameStateManager {
             if (row_top >= trigger_y) {
                 for (const rect of active_row.rectangles) {
                     if (!rect.is_pressed) {
-                        this.complete_rectangle(rect, active_row, rect.y + this.game_data.scroll_offset, false);
+                        // Use press_rectangle to play sound
+                        this.press_rectangle(rect, active_row, rect.y + this.game_data.scroll_offset);
                     }
                 }
             }
@@ -484,6 +491,10 @@ export class GameStateManager {
                 const hit_zone_top = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
                 if (screen_y >= hit_zone_top && screen_y <= row_bottom) {
                     pressed_rect.is_holding = true;
+                    // Play random sample for long black tiles
+                    if (active_row.row_type !== RowType.START && !active_row.is_completed) {
+                        this.audio_manager.play_random_sample();
+                    }
                 }
                 return true;
             } else {
@@ -549,6 +560,10 @@ export class GameStateManager {
             const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
             if (is_long_tile) {
                 pressed_rect.is_holding = true;
+                // Play random sample for long black tiles
+                if (active_row.row_type !== RowType.START && !active_row.is_completed) {
+                    this.audio_manager.play_random_sample();
+                }
                 return true;
             } else {
                 this.press_rectangle(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
@@ -575,6 +590,10 @@ export class GameStateManager {
     }
 
     private press_rectangle(rect: RectangleData, row: RowData, screen_y: number): void {
+        // Play random sample for black tiles
+        if (row.row_type !== RowType.START && !row.is_completed) {
+            this.audio_manager.play_random_sample();
+        }
         this.complete_rectangle(rect, row, screen_y, false);
     }
 
@@ -616,6 +635,9 @@ export class GameStateManager {
     ): void {
         this.game_data.state = GameState.GAME_OVER_MISCLICKED;
 
+        // Play game over chord
+        this.audio_manager.play_game_over_chord();
+
         const column_width = SCREEN_CONFIG.WIDTH / 4;
         const indicator: RectangleData = {
             slot_index,
@@ -643,6 +665,9 @@ export class GameStateManager {
 
     private trigger_game_over_out_of_bounds(active_row: RowData): void {
         this.game_data.state = GameState.GAME_OVER_OUT_OF_BOUNDS;
+
+        // Play game over chord
+        this.audio_manager.play_game_over_chord();
 
         const unpressed_rect = active_row.rectangles.find(r => !r.is_pressed);
         if (unpressed_rect) {
