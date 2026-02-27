@@ -368,6 +368,8 @@ export class GameStateManager {
                 for (const rect of active_row.rectangles) {
                     if (!rect.is_pressed && !rect.is_holding) {
                         rect.is_holding = true;
+                        // Start progress bar from base tile height for long tiles
+                        rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
                         // Play sound when bot starts holding a long tile
                         this.audio_manager.play_random_sample();
                     }
@@ -491,6 +493,8 @@ export class GameStateManager {
                 const hit_zone_top = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
                 if (screen_y >= hit_zone_top && screen_y <= row_bottom) {
                     pressed_rect.is_holding = true;
+                    // Start progress bar from base tile height for long tiles
+                    pressed_rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
                     // Play random sample for long black tiles
                     if (active_row.row_type !== RowType.START && !active_row.is_completed) {
                         this.audio_manager.play_random_sample();
@@ -560,6 +564,8 @@ export class GameStateManager {
             const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
             if (is_long_tile) {
                 pressed_rect.is_holding = true;
+                // Start progress bar from base tile height for long tiles
+                pressed_rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
                 // Play random sample for long black tiles
                 if (active_row.row_type !== RowType.START && !active_row.is_completed) {
                     this.audio_manager.play_random_sample();
