@@ -190,10 +190,6 @@ function build_timeline(components: ParsedComponent[]): TimelineEntry[] {
     return timeline;
 }
 
-function ranges_overlap(start1: number, end1: number, start2: number, end2: number): boolean {
-    return start1 < end2 && start2 < end1;
-}
-
 function blend_tracks(
     primary_components: ParsedComponent[],
     primary_timeline: TimelineEntry[],
@@ -206,10 +202,13 @@ function blend_tracks(
         const secondary_timeline = build_timeline(secondary_components);
 
         for (const sec_entry of secondary_timeline) {
+            // If secondary has a note (not a rest)
             if (!sec_entry.is_rest) {
+                // Find primary rests where the secondary note STARTS within the rest's time range
                 for (const prim_entry of primary_timeline) {
-                    if (ranges_overlap(prim_entry.start, prim_entry.end, sec_entry.start, sec_entry.end)) {
-                        if (prim_entry.is_rest) {
+                    if (prim_entry.is_rest) {
+                        // Only blend if secondary note starts within primary rest's time range
+                        if (sec_entry.start >= prim_entry.start && sec_entry.start < prim_entry.end) {
                             blended_indices.add(prim_entry.index);
                         }
                     }
