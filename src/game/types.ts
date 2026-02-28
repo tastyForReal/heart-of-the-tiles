@@ -102,6 +102,10 @@ export interface GameData {
     current_tps: number;
     current_music_index: number;
     musics_metadata: MusicMetadata[];
+    // MIDI playback related fields
+    playback_stopwatch: number; // Current playback position in seconds
+    is_midi_loaded: boolean; // Whether MIDI data is loaded from JSON
+    has_game_started: boolean; // Whether the first black tile has been pressed (after yellow start tile)
 }
 
 /**

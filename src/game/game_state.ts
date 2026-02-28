@@ -53,6 +53,10 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
         current_tps: SCREEN_CONFIG.DEFAULT_TPS,
         current_music_index: 0,
         musics_metadata: [],
+        // MIDI playback defaults
+        playback_stopwatch: 0,
+        is_midi_loaded: false,
+        has_game_started: false,
     };
 }
 
@@ -185,6 +189,8 @@ export class GameStateManager {
         this.game_data = create_initial_game_state(this.config);
         this.particle_system.clear();
         this.audio_manager.stop_all_samples();
+        // Clear MIDI data and reset playback
+        this.audio_manager.clear_midi_data();
     }
 
     /**
@@ -195,6 +201,23 @@ export class GameStateManager {
 
         // Determine initial TPS from first music
         const initial_tps = level_data.musics.length > 0 ? level_data.musics[0].tps : SCREEN_CONFIG.DEFAULT_TPS;
+
+        // Load MIDI data to audio manager if available
+        const is_midi_loaded = level_data.midi_json !== null;
+        console.log(`[GameState] Loading level:`);
+        console.log(`  - Total rows: ${rows.length}`);
+        console.log(`  - Music sections: ${level_data.musics.length}`);
+        console.log(`  - Base BPM: ${level_data.base_bpm}`);
+        console.log(`  - Initial TPS: ${initial_tps.toFixed(2)}`);
+        console.log(`  - MIDI loaded: ${is_midi_loaded}`);
+
+        if (level_data.midi_json) {
+            console.log(`  - MIDI tracks: ${level_data.midi_json.tracks.length}`);
+            this.audio_manager.load_midi_data(level_data.midi_json);
+        } else {
+            console.log(`  - No MIDI data, clearing audio manager`);
+            this.audio_manager.clear_midi_data();
+        }
 
         this.game_data = {
             state: GameState.PAUSED,
@@ -213,6 +236,10 @@ export class GameStateManager {
             current_tps: initial_tps,
             current_music_index: 0,
             musics_metadata: level_data.musics,
+            // MIDI playback settings
+            playback_stopwatch: 0,
+            is_midi_loaded,
+            has_game_started: false,
         };
         this.particle_system.clear();
     }
@@ -239,8 +266,14 @@ export class GameStateManager {
             current_tps: SCREEN_CONFIG.DEFAULT_TPS,
             current_music_index: 0,
             musics_metadata: [],
+            // MIDI playback defaults
+            playback_stopwatch: 0,
+            is_midi_loaded: false,
+            has_game_started: false,
         };
         this.particle_system.clear();
+        // Clear MIDI data when loading custom rows
+        this.audio_manager.clear_midi_data();
     }
 
     start(): void {
@@ -307,9 +340,16 @@ export class GameStateManager {
             if (level_row_index >= music.start_row_index && level_row_index < music.end_row_index) {
                 if (this.game_data.current_music_index !== i) {
                     // Transitioned to a new music section
+                    const previous_music_index = this.game_data.current_music_index;
+                    const previous_tps = this.game_data.current_tps;
                     this.game_data.current_music_index = i;
                     this.game_data.current_tps = music.tps;
-                    console.log(`Music transition: Music ${music.id}, TPS: ${music.tps.toFixed(2)}`);
+                    console.log(`[GameState] Music transition detected:`);
+                    console.log(`  - From: Music ${previous_music_index}, TPS: ${previous_tps.toFixed(2)}`);
+                    console.log(`  - To: Music ${music.id} (index ${i}), TPS: ${music.tps.toFixed(2)}`);
+                    console.log(
+                        `  - Level row index: ${level_row_index}, range: [${music.start_row_index}, ${music.end_row_index})`,
+                    );
                 }
                 break;
             }
@@ -327,6 +367,25 @@ export class GameStateManager {
         const scroll_speed = this.get_scroll_speed();
         const scroll_delta = scroll_speed * delta_time;
         this.game_data.scroll_offset += scroll_delta;
+
+        // Only update playback stopwatch and MIDI playback after game has started (first black tile pressed)
+        if (this.game_data.has_game_started) {
+            // Update playback stopwatch (in seconds)
+            const previous_stopwatch = this.game_data.playback_stopwatch;
+            this.game_data.playback_stopwatch += delta_time;
+
+            // Update MIDI playback
+            if (this.game_data.is_midi_loaded) {
+                this.audio_manager.update_midi_playback(this.game_data.playback_stopwatch);
+            }
+
+            // Log stopwatch update every 0.5 seconds
+            if (Math.floor(this.game_data.playback_stopwatch * 2) !== Math.floor(previous_stopwatch * 2)) {
+                console.log(
+                    `[GameState] Stopwatch: ${this.game_data.playback_stopwatch.toFixed(3)}s, MIDI loaded: ${this.game_data.is_midi_loaded}`,
+                );
+            }
+        }
 
         const active_row = this.get_active_row();
         if (active_row) {
@@ -364,14 +423,23 @@ export class GameStateManager {
         const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
 
         if (is_long_tile) {
-            if (row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT >= trigger_y) {
+            const long_tile_trigger = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
+            console.log(
+                `[GameState] Bot: Long tile check - row_bottom: ${row_bottom.toFixed(1)}, trigger: ${trigger_y.toFixed(1)}, threshold: ${long_tile_trigger.toFixed(1)}`,
+            );
+            if (long_tile_trigger >= trigger_y) {
                 for (const rect of active_row.rectangles) {
                     if (!rect.is_pressed && !rect.is_holding) {
                         rect.is_holding = true;
                         // Start progress bar from base tile height for long tiles
                         rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
+                        // Start the game stopwatch when the first black tile is pressed
+                        if (!this.game_data.has_game_started) {
+                            this.game_data.has_game_started = true;
+                            console.log(`[GameState] Game started via bot (long tile)`);
+                        }
                         // Play sound when bot starts holding a long tile
-                        this.audio_manager.play_random_sample();
+                        this.play_tile_sound(active_row);
                     }
                 }
             }
@@ -435,6 +503,18 @@ export class GameStateManager {
         return null;
     }
 
+    /**
+     * Plays the appropriate sound for a tile press.
+     * If MIDI data is loaded, uses MIDI playback. Otherwise, plays random sample.
+     */
+    private play_tile_sound(row: RowData): void {
+        // If MIDI data is loaded, don't play random samples
+        // The MIDI playback is handled in update_scroll
+        if (!this.game_data.is_midi_loaded) {
+            this.audio_manager.play_random_sample();
+        }
+    }
+
     handle_slot_input(slot_index: number, screen_x: number, screen_y: number, is_down: boolean): boolean {
         if (this.is_game_over()) {
             return false;
@@ -489,16 +569,34 @@ export class GameStateManager {
 
         if (pressed_rect && !pressed_rect.is_pressed && !pressed_rect.is_holding) {
             const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
+            console.log(`[GameState] handle_slot_input: Tile press detected`);
+            console.log(`  - Slot index: ${slot_index}, Is long tile: ${is_long_tile}`);
+            console.log(`  - Row height: ${active_row.height}, Base height: ${SCREEN_CONFIG.BASE_ROW_HEIGHT}`);
+
             if (is_long_tile) {
                 const hit_zone_top = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
+                console.log(
+                    `  - Screen Y: ${screen_y.toFixed(1)}, Hit zone: [${hit_zone_top.toFixed(1)}, ${row_bottom.toFixed(1)}]`,
+                );
+                console.log(`  - In hit zone: ${screen_y >= hit_zone_top && screen_y <= row_bottom}`);
+
                 if (screen_y >= hit_zone_top && screen_y <= row_bottom) {
                     pressed_rect.is_holding = true;
                     // Start progress bar from base tile height for long tiles
                     pressed_rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
-                    // Play random sample for long black tiles
-                    if (active_row.row_type !== RowType.START && !active_row.is_completed) {
-                        this.audio_manager.play_random_sample();
+                    // Start the game stopwatch when the first black tile is pressed
+                    if (!this.game_data.has_game_started) {
+                        this.game_data.has_game_started = true;
+                        console.log(`[GameState] Game started via handle_slot_input (long tile in hit zone)`);
+                        console.log(`  - Row index: ${active_row.row_index}`);
+                        console.log(`  - MIDI loaded: ${this.game_data.is_midi_loaded}`);
                     }
+                    // Play sound for long black tiles
+                    if (active_row.row_type !== RowType.START && !active_row.is_completed) {
+                        this.play_tile_sound(active_row);
+                    }
+                } else {
+                    console.log(`[GameState] Long tile press OUTSIDE hit zone - game NOT started`);
                 }
                 return true;
             } else {
@@ -562,13 +660,25 @@ export class GameStateManager {
 
         if (pressed_rect && !pressed_rect.is_pressed && !pressed_rect.is_holding) {
             const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
+            console.log(`[GameState] handle_keyboard_input: Tile press detected`);
+            console.log(`  - Slot index: ${slot_index}, Is long tile: ${is_long_tile}`);
+            console.log(`  - Row height: ${active_row.height}, Base height: ${SCREEN_CONFIG.BASE_ROW_HEIGHT}`);
+            console.log(`  - Row bottom: ${row_bottom.toFixed(1)}, Timing zone: ${timing_zone.toFixed(1)}`);
+
             if (is_long_tile) {
                 pressed_rect.is_holding = true;
                 // Start progress bar from base tile height for long tiles
                 pressed_rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
-                // Play random sample for long black tiles
+                // Start the game stopwatch when the first black tile is pressed
+                if (!this.game_data.has_game_started) {
+                    this.game_data.has_game_started = true;
+                    console.log(`[GameState] Game started via handle_keyboard_input (long tile)`);
+                    console.log(`  - Row index: ${active_row.row_index}`);
+                    console.log(`  - MIDI loaded: ${this.game_data.is_midi_loaded}`);
+                }
+                // Play sound for long black tiles
                 if (active_row.row_type !== RowType.START && !active_row.is_completed) {
-                    this.audio_manager.play_random_sample();
+                    this.play_tile_sound(active_row);
                 }
                 return true;
             } else {
@@ -588,6 +698,17 @@ export class GameStateManager {
 
     private complete_rectangle(rect: RectangleData, row: RowData, screen_y: number, early_release: boolean): void {
         rect.is_pressed = true;
+
+        // Start the game stopwatch when the first black tile is pressed (fallback for long tiles)
+        if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
+            this.game_data.has_game_started = true;
+            console.log(`[GameState] Game started via complete_rectangle (fallback for long tile)`);
+            console.log(`  - Row index: ${row.row_index}, Row type: ${RowType[row.row_type]}`);
+            console.log(`  - Slot index: ${rect.slot_index}`);
+            console.log(`  - Early release: ${early_release}`);
+            console.log(`  - MIDI loaded: ${this.game_data.is_midi_loaded}`);
+        }
+
         if (!early_release) {
             rect.opacity = 0.25;
             this.particle_system.add_debris(rect.x, screen_y, rect.width, rect.height, 20);
@@ -596,9 +717,19 @@ export class GameStateManager {
     }
 
     private press_rectangle(rect: RectangleData, row: RowData, screen_y: number): void {
-        // Play random sample for black tiles
+        // Start the game stopwatch when the first black tile is pressed
+        if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
+            this.game_data.has_game_started = true;
+            console.log(`[GameState] Game started via press_rectangle (normal tile)`);
+            console.log(`  - Row index: ${row.row_index}, Row type: ${RowType[row.row_type]}`);
+            console.log(`  - Slot index: ${rect.slot_index}`);
+            console.log(`  - MIDI loaded: ${this.game_data.is_midi_loaded}`);
+            console.log(`  - Stopwatch started at: ${this.game_data.playback_stopwatch.toFixed(3)}s`);
+        }
+
+        // Play sound for black tiles
         if (row.row_type !== RowType.START && !row.is_completed) {
-            this.audio_manager.play_random_sample();
+            this.play_tile_sound(row);
         }
         this.complete_rectangle(rect, row, screen_y, false);
     }

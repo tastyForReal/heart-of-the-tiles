@@ -1,4 +1,5 @@
-const EXCLUDED_FILES: Set<string> = new Set(["chuanshao.mp3", "empty.mp3"]);
+import { MIDI_TO_NOTE, MidiJson, MidiNote } from "./midi_types.js";
+
 const GAME_OVER_NOTES: string[] = ["c.mp3", "e.mp3", "g.mp3"];
 const AUDIO_SAMPLES_PATH: string = "assets/sounds/mp3/piano/";
 
@@ -8,6 +9,9 @@ export class AudioManager {
     private active_sources: Set<AudioBufferSourceNode> = new Set();
     private is_initialized: boolean = false;
     private sample_names: string[] = [];
+    private midi_data: MidiJson | null = null;
+    private last_played_note_index: number = -1;
+    private played_notes: Set<number> = new Set(); // Track played notes by their start time
 
     async initialize(): Promise<boolean> {
         if (this.is_initialized) {
@@ -17,7 +21,7 @@ export class AudioManager {
         try {
             this.audio_context = new AudioContext();
             const sample_files = this.get_sample_list();
-            this.sample_names = sample_files.filter((file: string) => !EXCLUDED_FILES.has(file));
+            this.sample_names = sample_files;
             await this.preload_samples();
             this.is_initialized = true;
 
@@ -165,7 +169,152 @@ export class AudioManager {
         }
     }
 
+    /**
+     * Loads MIDI data for playback.
+     */
+    load_midi_data(midi_data: MidiJson): void {
+        this.midi_data = midi_data;
+        this.reset_playback();
+        console.log(`[AudioManager] MIDI data loaded:`);
+        console.log(`  - Number of tracks: ${midi_data.tracks.length}`);
+        console.log(`  - PPQ: ${midi_data.header.ppq}`);
+        console.log(`  - Number of tempo changes: ${midi_data.header.tempos.length}`);
+
+        // Log total notes across all tracks
+        let total_notes = 0;
+        for (let i = 0; i < midi_data.tracks.length; i++) {
+            const note_count = midi_data.tracks[i].notes.length;
+            total_notes += note_count;
+            console.log(`  - Track ${i}: ${note_count} notes`);
+        }
+        console.log(`  - Total notes: ${total_notes}`);
+
+        // Log tempo changes
+        for (const tempo of midi_data.header.tempos) {
+            console.log(`  - Tempo at ticks ${tempo.ticks}: ${tempo.bpm.toFixed(2)} BPM`);
+        }
+    }
+
+    /**
+     * Clears the loaded MIDI data.
+     */
+    clear_midi_data(): void {
+        console.log(`[AudioManager] Clearing MIDI data (previously had ${this.midi_data?.tracks.length ?? 0} tracks)`);
+        this.midi_data = null;
+        this.reset_playback();
+    }
+
+    /**
+     * Resets playback state.
+     */
+    reset_playback(): void {
+        const previous_index = this.last_played_note_index;
+        const previous_count = this.played_notes.size;
+        this.last_played_note_index = -1;
+        this.played_notes.clear();
+        console.log(
+            `[AudioManager] Playback reset - cleared ${previous_count} played notes (was at index ${previous_index})`,
+        );
+    }
+
+    /**
+     * Updates MIDI playback based on current stopwatch time.
+     * Plays notes that should be heard at the current time.
+     */
+    update_midi_playback(current_time: number): void {
+        if (!this.midi_data || !this.is_initialized || !this.audio_context) {
+            return;
+        }
+
+        if (this.audio_context.state === "suspended") {
+            this.audio_context.resume();
+        }
+
+        let notes_played_this_update = 0;
+
+        // Iterate through all tracks and play notes that should be triggered
+        for (let track_idx = 0; track_idx < this.midi_data.tracks.length; track_idx++) {
+            const track = this.midi_data.tracks[track_idx];
+            for (let i = 0; i < track.notes.length; i++) {
+                const note = track.notes[i];
+
+                // Create a unique identifier for this note
+                const note_id = Math.round(note.time * 1000) * 1000 + note.midi;
+
+                // Check if note should be played (within a small time window)
+                const time_window = 0.05; // 50ms window for checking notes
+                if (current_time >= note.time && current_time < note.time + time_window) {
+                    // Check if this note hasn't been played yet
+                    if (!this.played_notes.has(note_id)) {
+                        // Only play MIDI notes in valid range (21-108)
+                        if (note.midi >= 21 && note.midi <= 108) {
+                            this.play_note_by_midi(note.midi);
+                            notes_played_this_update++;
+                            console.log(
+                                `[AudioManager] Playing note: MIDI ${note.midi} at time ${note.time.toFixed(3)}s (current: ${current_time.toFixed(3)}s)`,
+                            );
+                        }
+                        this.played_notes.add(note_id);
+                    }
+                }
+            }
+        }
+
+        if (notes_played_this_update > 0) {
+            console.log(
+                `[AudioManager] Update at ${current_time.toFixed(3)}s: played ${notes_played_this_update} notes, total played: ${this.played_notes.size}`,
+            );
+        }
+
+        // Clean up old played notes (notes that have finished playing)
+        const max_note_time = current_time - 10; // Keep notes from last 10 seconds
+        let cleaned_count = 0;
+        for (const note_id of this.played_notes) {
+            const note_time = Math.floor(note_id / 1000) / 1000;
+            if (note_time < max_note_time) {
+                this.played_notes.delete(note_id);
+                cleaned_count++;
+            }
+        }
+        if (cleaned_count > 0) {
+            console.log(`[AudioManager] Cleaned up ${cleaned_count} old notes from cache`);
+        }
+    }
+
+    /**
+     * Plays a note by MIDI number.
+     */
+    play_note_by_midi(midi_number: number): void {
+        if (!this.is_initialized || !this.audio_context) {
+            console.warn(`[AudioManager] Cannot play MIDI ${midi_number}: audio not initialized`);
+            return;
+        }
+
+        if (this.audio_context.state === "suspended") {
+            this.audio_context.resume();
+        }
+
+        // Get the note name from the MIDI number
+        const note_name = MIDI_TO_NOTE[midi_number];
+        if (!note_name) {
+            console.warn(`[AudioManager] No note name mapping for MIDI ${midi_number}`);
+            return;
+        }
+
+        // Convert note name to file name
+        const file_name = note_name + ".mp3";
+        console.log(
+            `[AudioManager] play_note_by_midi: MIDI ${midi_number} -> note "${note_name}" -> file "${file_name}"`,
+        );
+        this.play_sample(file_name);
+    }
+
     play_random_sample(): void {
+        // Don't play random samples if MIDI data is loaded
+        if (this.midi_data) {
+            return;
+        }
+
         if (!this.is_initialized || !this.audio_context || this.sample_names.length === 0) {
             return;
         }
@@ -244,6 +393,10 @@ export class AudioManager {
         if (this.audio_context && this.audio_context.state === "suspended") {
             this.audio_context.resume();
         }
+    }
+
+    has_midi_data(): boolean {
+        return this.midi_data !== null;
     }
 }
 

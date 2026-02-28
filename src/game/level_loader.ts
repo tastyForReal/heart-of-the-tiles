@@ -1,4 +1,6 @@
 import { RowType } from "./types.js";
+import { MidiJson } from "./midi_types.js";
+import { convert_raw_to_midi_json } from "./json_to_midi.js";
 
 export interface RowTypeResult {
     type: RowType;
@@ -23,6 +25,7 @@ export interface LevelData {
     rows: RowTypeResult[];
     musics: MusicMetadata[];
     base_bpm: number;
+    midi_json: MidiJson | null; // Formatted MIDI data for playback
 }
 
 interface ParsedComponent {
@@ -433,10 +436,40 @@ export function parse_and_combine_musics(json_string: string): LevelData {
         });
     }
 
+    // Convert raw JSON to formatted MIDI JSON for playback
+    let midi_json: MidiJson | null = null;
+    try {
+        console.log(`[LevelLoader] Starting MIDI conversion for ${data.musics.length} music parts...`);
+        console.log(`[LevelLoader] Using baseBpm: ${base_bpm} as fallback for missing BPM values`);
+        midi_json = convert_raw_to_midi_json(data.musics, base_bpm);
+        console.log(`[LevelLoader] MIDI conversion successful!`);
+        console.log(`  - Total tracks: ${midi_json.tracks.length}`);
+        console.log(`  - Total tempo changes: ${midi_json.header.tempos.length}`);
+
+        // Log some timing info
+        let max_time = 0;
+        let total_notes = 0;
+        for (const track of midi_json.tracks) {
+            total_notes += track.notes.length;
+            for (const note of track.notes) {
+                const note_end = note.time + note.duration;
+                if (note_end > max_time) {
+                    max_time = note_end;
+                }
+            }
+        }
+        console.log(`  - Total notes: ${total_notes}`);
+        console.log(`  - Duration: ${max_time.toFixed(2)}s`);
+    } catch (error) {
+        console.error(`[LevelLoader] Failed to convert music to MIDI format:`);
+        console.error(error);
+    }
+
     return {
         rows: combined_rows,
         musics: musics_metadata,
         base_bpm,
+        midi_json,
     };
 }
 
