@@ -220,10 +220,11 @@ export class AudioManager {
     /**
      * Updates MIDI playback based on current stopwatch time.
      * Plays notes that should be heard at the current time.
+     * Returns an array of note_ids that were played this update.
      */
-    update_midi_playback(current_time: number): void {
+    update_midi_playback(current_time: number): number[] {
         if (!this.midi_data || !this.is_initialized || !this.audio_context) {
-            return;
+            return [];
         }
 
         if (this.audio_context.state === "suspended") {
@@ -231,6 +232,7 @@ export class AudioManager {
         }
 
         let notes_played_this_update = 0;
+        const played_note_ids: number[] = [];
 
         // Iterate through all tracks and play notes that should be triggered
         for (let track_idx = 0; track_idx < this.midi_data.tracks.length; track_idx++) {
@@ -238,24 +240,29 @@ export class AudioManager {
             for (let i = 0; i < track.notes.length; i++) {
                 const note = track.notes[i];
 
-                // Create a unique identifier for this note
-                const note_id = Math.round(note.time * 1000) * 1000 + note.midi;
+                // Create a unique identifier for this note that includes the track index
+                const note_id = Math.round(note.time * 1000) * 1000000 + track_idx * 1000 + note.midi;
 
-                // Check if note should be played (within a small time window)
-                const time_window = 0.05; // 50ms window for checking notes
-                if (current_time >= note.time && current_time < note.time + time_window) {
-                    // Check if this note hasn't been played yet
-                    if (!this.played_notes.has(note_id)) {
-                        // Only play MIDI notes in valid range (21-108)
-                        if (note.midi >= 21 && note.midi <= 108) {
-                            this.play_note_by_midi(note.midi);
-                            notes_played_this_update++;
-                            console.log(
-                                `[AudioManager] Playing note: MIDI ${note.midi} at time ${note.time.toFixed(3)}s (current: ${current_time.toFixed(3)}s)`,
-                            );
-                        }
-                        this.played_notes.add(note_id);
+                // Check if note should be played:
+                // 1. It must be at or before the current playback time
+                // 2. It must not have been played already
+                // 3. It must be within a reasonable lookback window (1 second) to avoid bursts on start
+                const lookback_window = 1.0;
+                if (
+                    note.time <= current_time &&
+                    note.time > current_time - lookback_window &&
+                    !this.played_notes.has(note_id)
+                ) {
+                    // Only play MIDI notes in valid range (21-108)
+                    if (note.midi >= 21 && note.midi <= 108) {
+                        this.play_note_by_midi(note.midi);
+                        notes_played_this_update++;
+                        console.log(
+                            `[AudioManager] Playing note: MIDI ${note.midi} at time ${note.time.toFixed(3)}s (current: ${current_time.toFixed(3)}s, track: ${track_idx})`,
+                        );
                     }
+                    this.played_notes.add(note_id);
+                    played_note_ids.push(note_id);
                 }
             }
         }
@@ -279,6 +286,8 @@ export class AudioManager {
         if (cleaned_count > 0) {
             console.log(`[AudioManager] Cleaned up ${cleaned_count} old notes from cache`);
         }
+
+        return played_note_ids;
     }
 
     /**

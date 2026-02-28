@@ -22,6 +22,12 @@ import { ParticleSystem } from "./particle_system.js";
 import { point_in_rect } from "../utils/math_utils.js";
 import { RowTypeResult, LevelData } from "./level_loader.js";
 import { get_audio_manager, AudioManager } from "./audio_manager.js";
+import {
+    NoteIndicatorData,
+    build_note_indicators,
+    consume_indicator_by_note_id,
+    get_active_indicators,
+} from "./note_indicator.js";
 
 export interface GameConfig {
     row_count: number;
@@ -57,6 +63,7 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
         playback_stopwatch: 0,
         is_midi_loaded: false,
         has_game_started: false,
+        note_indicators: [],
     };
 }
 
@@ -240,7 +247,18 @@ export class GameStateManager {
             playback_stopwatch: 0,
             is_midi_loaded,
             has_game_started: false,
+            note_indicators: [],
         };
+
+        // Build note indicators from MIDI data after rows are set
+        if (level_data.midi_json) {
+            this.game_data.note_indicators = build_note_indicators(
+                level_data.midi_json,
+                this.game_data.rows,
+                level_data.musics,
+            );
+            console.log(`[GameState] Built ${this.game_data.note_indicators.length} note indicators`);
+        }
         this.particle_system.clear();
     }
 
@@ -270,6 +288,7 @@ export class GameStateManager {
             playback_stopwatch: 0,
             is_midi_loaded: false,
             has_game_started: false,
+            note_indicators: [],
         };
         this.particle_system.clear();
         // Clear MIDI data when loading custom rows
@@ -374,9 +393,12 @@ export class GameStateManager {
             const previous_stopwatch = this.game_data.playback_stopwatch;
             this.game_data.playback_stopwatch += delta_time;
 
-            // Update MIDI playback
+            // Update MIDI playback and consume note indicators
             if (this.game_data.is_midi_loaded) {
-                this.audio_manager.update_midi_playback(this.game_data.playback_stopwatch);
+                const played_note_ids = this.audio_manager.update_midi_playback(this.game_data.playback_stopwatch);
+                for (const note_id of played_note_ids) {
+                    consume_indicator_by_note_id(this.game_data.note_indicators, note_id);
+                }
             }
 
             // Log stopwatch update every 0.5 seconds
@@ -913,5 +935,9 @@ export class GameStateManager {
             return this.game_data.game_over_flash.rectangle;
         }
         return null;
+    }
+
+    get_active_note_indicators(): NoteIndicatorData[] {
+        return get_active_indicators(this.game_data.note_indicators);
     }
 }

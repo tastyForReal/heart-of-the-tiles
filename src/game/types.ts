@@ -106,6 +106,30 @@ export interface GameData {
     playback_stopwatch: number; // Current playback position in seconds
     is_midi_loaded: boolean; // Whether MIDI data is loaded from JSON
     has_game_started: boolean; // Whether the first black tile has been pressed (after yellow start tile)
+    note_indicators: NoteIndicatorData[]; // Red 16x16 MIDI note indicator squares
+}
+
+/**
+ * Represents a single red 16x16 square that indicates when a MIDI note
+ * will be played at a specific time on a tile.
+ */
+export interface NoteIndicatorData {
+    /** Unique identifier derived from the MIDI note's time and number */
+    note_id: number;
+    /** The row index this indicator belongs to */
+    row_index: number;
+    /** X position (pixel space, between left and right edge of the tile) */
+    x: number;
+    /** Y position (pixel space, relative to the row's coordinate system) */
+    y: number;
+    /** Width of the indicator square */
+    width: number;
+    /** Height of the indicator square */
+    height: number;
+    /** The playback time (seconds) that this indicator corresponds to */
+    time: number;
+    /** Whether the indicator has been consumed (note was played) */
+    is_consumed: boolean;
 }
 
 /**

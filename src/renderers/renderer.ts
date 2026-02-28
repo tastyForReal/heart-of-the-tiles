@@ -1,6 +1,7 @@
 import { GPUContext } from "./gpu_context.js";
 import { hex_to_rgba } from "../utils/math_utils.js";
 import { RowData, RectangleData, ParticleData, SCREEN_CONFIG, COLORS } from "../game/types.js";
+import { NoteIndicatorData } from "../game/note_indicator.js";
 
 interface RectangleVertex {
     position: [number, number];
@@ -288,6 +289,21 @@ export class Renderer {
         ];
     }
 
+    private create_note_indicator_vertices(indicator: NoteIndicatorData, scroll_offset: number): RectangleVertex[] {
+        const color: [number, number, number, number] = [1, 0, 0, 1]; // RED
+        const y = indicator.y + scroll_offset;
+
+        return [
+            { position: [indicator.x, y], color },
+            { position: [indicator.x + indicator.width, y], color },
+            { position: [indicator.x + indicator.width, y + indicator.height], color },
+
+            { position: [indicator.x, y], color },
+            { position: [indicator.x + indicator.width, y + indicator.height], color },
+            { position: [indicator.x, y + indicator.height], color },
+        ];
+    }
+
     /**
      * Rebuilds the combined vertex buffer dynamically per-frame, then submits the draw call.
      * Uses a single unified render pass with one pipeline and buffer strategy, optimizing for
@@ -298,6 +314,7 @@ export class Renderer {
         particles: ParticleData[],
         game_over_indicator: RectangleData | null,
         scroll_offset: number,
+        note_indicators: NoteIndicatorData[] = [],
     ): void {
         const device = this.gpu_context.get_device();
         const context = this.gpu_context.get_context();
@@ -346,6 +363,16 @@ export class Renderer {
             const line_x = i * column_width;
             const vertices = this.create_grid_line_vertices(line_x);
             all_vertices.push(...vertices);
+        }
+
+        // Draw note indicators (red squares) at the very front
+        for (const indicator of note_indicators) {
+            const indicator_screen_y = indicator.y + scroll_offset;
+            // Only draw visible indicators
+            if (indicator_screen_y + indicator.height > 0 && indicator_screen_y < SCREEN_CONFIG.HEIGHT) {
+                const vertices = this.create_note_indicator_vertices(indicator, scroll_offset);
+                all_vertices.push(...vertices);
+            }
         }
 
         const vertex_data = new Float32Array(all_vertices.length * 6);
