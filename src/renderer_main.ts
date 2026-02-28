@@ -4,6 +4,10 @@ import { select_and_load_music_file, LevelData } from "./game/level_loader.js";
 import { get_audio_manager } from "./game/audio_manager.js";
 
 async function main(): Promise<void> {
+    setTimeout(() => {
+        (document.querySelector(".canvas_instructions") as HTMLElement).style.display = "none";
+    }, 5000);
+
     const canvas = document.getElementById("game_canvas") as HTMLCanvasElement;
 
     if (!canvas) {
