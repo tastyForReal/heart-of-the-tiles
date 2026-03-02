@@ -20,7 +20,7 @@ import {
 } from "./row_generator.js";
 import { ParticleSystem } from "./particle_system.js";
 import { point_in_rect } from "../utils/math_utils.js";
-import { RowTypeResult, LevelData } from "./level_loader.js";
+import { RowTypeResult, LevelData } from "./json_level_reader.js";
 import { get_audio_manager, AudioManager } from "./audio_manager.js";
 import {
     NoteIndicatorData,

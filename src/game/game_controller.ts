@@ -3,7 +3,7 @@ import { Renderer } from "../renderers/renderer.js";
 import { GameStateManager, GameConfig, DEFAULT_GAME_CONFIG } from "./game_state.js";
 import { InputHandler } from "./input_handler.js";
 import { SCREEN_CONFIG, GameState, InputType } from "./types.js";
-import { LevelData, RowTypeResult } from "./level_loader.js";
+import { LevelData, RowTypeResult } from "./json_level_reader.js";
 
 /**
  * Orchestrates the main game loop (`requestAnimationFrame`) and bridges WebGPU rendering with pure game logic state.

@@ -1,6 +1,6 @@
 import { GameController } from "./game/game_controller.js";
 import { SCREEN_CONFIG } from "./game/types.js";
-import { select_and_load_music_file, LevelData } from "./game/level_loader.js";
+import { select_and_load_music_file, LevelData } from "./game/json_level_reader.js";
 import { get_audio_manager } from "./game/audio_manager.js";
 
 async function main(): Promise<void> {
