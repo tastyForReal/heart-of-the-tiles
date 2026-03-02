@@ -33,7 +33,7 @@ interface ParsedComponent {
     original_type: RowType;
 }
 
-const DURATION_MAP: Record<string, number> = {
+const DURATION_MAP = {
     H: 256,
     I: 128,
     J: 64,
@@ -43,9 +43,9 @@ const DURATION_MAP: Record<string, number> = {
     N: 4,
     O: 2,
     P: 1,
-};
+} as const;
 
-const REST_MAP: Record<string, number> = {
+const REST_MAP = {
     Q: 256,
     R: 128,
     S: 64,
@@ -55,35 +55,45 @@ const REST_MAP: Record<string, number> = {
     W: 4,
     X: 2,
     Y: 1,
-};
+} as const;
 
-function extract_duration_letters(str: string): number {
+const COMBINED_MAP: Record<string, number> = { ...DURATION_MAP, ...REST_MAP };
+
+function extract_letters(str: string, map: Record<string, number>): number {
     let total = 0;
     for (const char of str) {
-        if (DURATION_MAP[char]) {
-            total += DURATION_MAP[char];
+        const value = map[char];
+        if (value !== undefined) {
+            total += value;
         }
     }
     return total;
+}
+
+function extract_duration_letters(str: string): number {
+    return extract_letters(str, DURATION_MAP as Record<string, number>);
 }
 
 function extract_rest_letters(str: string): number {
-    let total = 0;
-    for (const char of str) {
-        if (REST_MAP[char]) {
-            total += REST_MAP[char];
-        }
-    }
-    return total;
+    return extract_letters(str, REST_MAP as Record<string, number>);
+}
+
+function extract_all_letters(str: string): number {
+    return extract_letters(str, COMBINED_MAP);
 }
 
 function is_only_rest_letters(str: string): boolean {
+    if (str.length === 0) return false;
     for (const char of str) {
-        if (!REST_MAP[char]) {
+        if (REST_MAP[char as keyof typeof REST_MAP] === undefined) {
             return false;
         }
     }
-    return str.length > 0;
+    return true;
+}
+
+function calculate_height_multiplier(duration: number, divisor: number): number {
+    return duration <= divisor ? 1 : duration / divisor;
 }
 
 function parse_component(component: string): ParsedComponent {
@@ -94,7 +104,7 @@ function parse_component(component: string): ParsedComponent {
         const type_id = parseInt(group_match[1], 10);
         const group_content = group_match[2];
 
-        const duration = extract_duration_letters(group_content);
+        const duration = extract_all_letters(group_content);
         const original_type = type_id === 5 ? RowType.DOUBLE : RowType.SINGLE;
         return { duration, original_type };
     }
@@ -190,11 +200,29 @@ function build_timeline(components: ParsedComponent[]): TimelineEntry[] {
     return timeline;
 }
 
-function blend_tracks(
-    primary_components: ParsedComponent[],
-    primary_timeline: TimelineEntry[],
-    secondary_scores: string[],
-): Set<number> {
+function find_primary_entry_by_start(primary_timeline: TimelineEntry[], secondaryStart: number): number {
+    let left = 0;
+    let right = primary_timeline.length - 1;
+
+    while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        const entry = primary_timeline[mid];
+
+        if (entry.start <= secondaryStart && secondaryStart < entry.end) {
+            return mid;
+        }
+
+        if (secondaryStart < entry.start) {
+            right = mid - 1;
+        } else {
+            left = mid + 1;
+        }
+    }
+
+    return -1;
+}
+
+function blend_tracks(primary_timeline: TimelineEntry[], secondary_scores: string[]): Set<number> {
     const blended_indices = new Set<number>();
 
     for (const secondary_score of secondary_scores) {
@@ -202,15 +230,13 @@ function blend_tracks(
         const secondary_timeline = build_timeline(secondary_components);
 
         for (const sec_entry of secondary_timeline) {
-            // If secondary has a note (not a rest)
             if (!sec_entry.is_rest) {
-                // Find primary rests where the secondary note STARTS within the rest's time range
-                for (const prim_entry of primary_timeline) {
+                const primary_index = find_primary_entry_by_start(primary_timeline, sec_entry.start);
+
+                if (primary_index !== -1) {
+                    const prim_entry = primary_timeline[primary_index];
                     if (prim_entry.is_rest) {
-                        // Only blend if secondary note starts within primary rest's time range
-                        if (sec_entry.start >= prim_entry.start && sec_entry.start < prim_entry.end) {
-                            blended_indices.add(prim_entry.index);
-                        }
+                        blended_indices.add(prim_entry.index);
                     }
                 }
             }
@@ -220,37 +246,35 @@ function blend_tracks(
     return blended_indices;
 }
 
+function create_result_entry(type: RowType, duration: number, unit_divisor: number): RowTypeResult {
+    return {
+        type,
+        height_multiplier: type === RowType.DOUBLE ? 1 : calculate_height_multiplier(duration, unit_divisor),
+    };
+}
+
 function generate_results(
     components: ParsedComponent[],
     blended_indices: Set<number>,
     unit_divisor: number,
 ): RowTypeResult[] {
     return components.map((comp, index) => {
-        if (comp.original_type === RowType.EMPTY && blended_indices.has(index)) {
+        if (comp.original_type === RowType.EMPTY) {
+            if (blended_indices.has(index)) {
+                return create_result_entry(RowType.SINGLE, comp.duration, unit_divisor);
+            }
             return {
-                type: RowType.SINGLE,
-                height_multiplier: comp.duration <= unit_divisor ? 1 : comp.duration / unit_divisor,
+                type: RowType.EMPTY,
+                height_multiplier: comp.duration / unit_divisor,
             };
         }
 
-        if (comp.original_type === RowType.DOUBLE) {
-            return { type: RowType.DOUBLE, height_multiplier: 1 };
-        }
-
-        if (comp.original_type === RowType.EMPTY) {
-            return { type: RowType.EMPTY, height_multiplier: comp.duration / unit_divisor };
-        }
-
-        return {
-            type: RowType.SINGLE,
-            height_multiplier: comp.duration <= unit_divisor ? 1 : comp.duration / unit_divisor,
-        };
+        return create_result_entry(comp.original_type, comp.duration, unit_divisor);
     });
 }
 
-function process_music(music: { id: number; base_beats: number; scores: string[] }): RowTypeResult[] {
-    // base_beats can be a decimal (e.g., 0.5), so we multiply by 32 to get the unit divisor
-    const unit_divisor = 32 * music.base_beats;
+function process_music(music: { id: number; baseBeats: number; scores: string[] }): RowTypeResult[] {
+    const unit_divisor = 32 * music.baseBeats;
 
     if (music.scores.length === 0) return [];
 
@@ -258,7 +282,7 @@ function process_music(music: { id: number; base_beats: number; scores: string[]
     const primary_timeline = build_timeline(primary_components);
 
     const secondary_scores = music.scores.slice(1);
-    const blended_indices = blend_tracks(primary_components, primary_timeline, secondary_scores);
+    const blended_indices = blend_tracks(primary_timeline, secondary_scores);
 
     return generate_results(primary_components, blended_indices, unit_divisor);
 }
@@ -337,7 +361,7 @@ function process_all_musics(data: MusicInputFile): Map<number, RowTypeResult[]> 
             music.id,
             process_music({
                 id: music.id,
-                base_beats: music.baseBeats,
+                baseBeats: music.baseBeats,
                 scores: music.scores,
             }),
         );
@@ -359,7 +383,7 @@ export function parse_music_json_string(json_string: string): MusicOutput[] {
             id: music.id,
             rows: process_music({
                 id: music.id,
-                base_beats: music.baseBeats,
+                baseBeats: music.baseBeats,
                 scores: music.scores,
             }),
         });
@@ -379,7 +403,7 @@ export function process_music_input_data(data: MusicInputFile): MusicOutput[] {
             id: music.id,
             rows: process_music({
                 id: music.id,
-                base_beats: music.baseBeats,
+                baseBeats: music.baseBeats,
                 scores: music.scores,
             }),
         });
@@ -390,7 +414,7 @@ export function process_music_input_data(data: MusicInputFile): MusicOutput[] {
 
 /**
  * Calculate TPS (Tiles Per Second) for a music entry
- * TPS = bpm / base_beats / 60
+ * TPS = bpm / baseBeats / 60
  */
 function calculate_tps(music: MusicEntry, base_bpm: number): number {
     const bpm = music.bpm ?? base_bpm;
@@ -418,7 +442,7 @@ export function parse_and_combine_musics(json_string: string): LevelData {
     for (const music of sorted_musics) {
         const rows = process_music({
             id: music.id,
-            base_beats: music.baseBeats,
+            baseBeats: music.baseBeats,
             scores: music.scores,
         });
         const start_row_index = combined_rows.length;
