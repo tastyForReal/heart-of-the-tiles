@@ -346,19 +346,18 @@ export class GameStateManager {
     }
 
     /**
-     * Updates the current TPS based on which music section the active row belongs to.
-     * This is called during scroll updates to handle dynamic tempo changes.
+     * Checks and updates the current TPS based on which music section the given row belongs to.
+     * This is called when pressing a tile to update speed immediately on first tile press of a new section.
+     * Returns true if a music section transition occurred.
      */
-    private update_current_music(): void {
+    private check_and_update_music_for_row(row: RowData): boolean {
         const musics = this.game_data.musics_metadata;
-        if (musics.length === 0) return;
-
-        const active_row = this.get_active_row();
-        if (!active_row || active_row.row_type === RowType.START) return;
+        if (musics.length === 0) return false;
+        if (row.row_type === RowType.START) return false;
 
         // Row index 0 is the start row, so actual level rows start at index 1
         // Convert to level row index (0-based for level rows)
-        const level_row_index = active_row.row_index - 1;
+        const level_row_index = row.row_index - 1;
 
         // Find which music section this row belongs to
         for (let i = 0; i < musics.length; i++) {
@@ -372,25 +371,24 @@ export class GameStateManager {
                     const previous_tps = this.game_data.current_tps;
                     this.game_data.current_music_index = i;
                     this.game_data.current_tps = music.tps;
-                    console.log(`[GameState] Music transition detected:`);
+                    console.log(`[GameState] Music transition on tile press:`);
                     console.log(`  - From: Music ${previous_music_index}, TPS: ${previous_tps.toFixed(2)}`);
                     console.log(`  - To: Music ${music.id} (index ${i}), TPS: ${music.tps.toFixed(2)}`);
                     console.log(
                         `  - Level row index: ${level_row_index}, range: [${music.start_row_index}, ${music.end_row_index})`,
                     );
+                    return true;
                 }
                 break;
             }
         }
+        return false;
     }
 
     update_scroll(delta_time: number): void {
         if (this.is_paused() || this.is_game_over()) {
             return;
         }
-
-        // Update TPS based on current music section
-        this.update_current_music();
 
         const scroll_speed = this.get_scroll_speed();
         const scroll_delta = scroll_speed * delta_time;
@@ -464,6 +462,8 @@ export class GameStateManager {
                         rect.is_holding = true;
                         // Start progress bar from base tile height for long tiles
                         rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
+                        // Check for music section transition on first tile press of new section
+                        this.check_and_update_music_for_row(active_row);
                         // Start the game stopwatch when the first black tile is pressed
                         if (!this.game_data.has_game_started) {
                             this.game_data.has_game_started = true;
@@ -623,6 +623,8 @@ export class GameStateManager {
                     pressed_rect.is_holding = true;
                     // Start progress bar from base tile height for long tiles
                     pressed_rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
+                    // Check for music section transition on first tile press of new section
+                    this.check_and_update_music_for_row(active_row);
                     // Start the game stopwatch when the first black tile is pressed
                     if (!this.game_data.has_game_started) {
                         this.game_data.has_game_started = true;
@@ -708,6 +710,8 @@ export class GameStateManager {
                 pressed_rect.is_holding = true;
                 // Start progress bar from base tile height for long tiles
                 pressed_rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
+                // Check for music section transition on first tile press of new section
+                this.check_and_update_music_for_row(active_row);
                 // Start the game stopwatch when the first black tile is pressed
                 if (!this.game_data.has_game_started) {
                     this.game_data.has_game_started = true;
@@ -756,6 +760,8 @@ export class GameStateManager {
     }
 
     private press_rectangle(rect: RectangleData, row: RowData, screen_y: number): void {
+        // Check for music section transition on first tile press of new section
+        this.check_and_update_music_for_row(row);
         // Start the game stopwatch when the first black tile is pressed
         if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
