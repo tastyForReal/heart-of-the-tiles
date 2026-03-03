@@ -103,8 +103,8 @@ export function build_note_indicators(
         const row = rows[target_row_info.row_index];
         if (!row) continue;
 
-        // Skip START (yellow) rows and rows with no rectangles
-        if (row.row_type === RowType.START || row.rectangles.length === 0) {
+        // Skip START (yellow) rows and rows with no tiles
+        if (row.row_type === RowType.START || row.tiles.length === 0) {
             continue;
         }
 

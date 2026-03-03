@@ -10,7 +10,7 @@ import {
     MusicMetadata,
     RowTiming,
 } from "./types.js";
-import { generate_all_rows, is_row_visible, DEFAULT_ROW_COUNT, create_rectangle } from "./row_generator.js";
+import { generate_all_rows, is_row_visible, DEFAULT_ROW_COUNT, create_tile } from "./row_generator.js";
 import { ParticleSystem } from "./particle_system.js";
 import { point_in_rect } from "../utils/math_utils.js";
 import { RowTypeResult, LevelData } from "./json_level_reader.js";
@@ -112,7 +112,7 @@ function determine_double_slots(preceding_row: RowData | null): [number, number]
     }
 
     if (preceding_row.row_type === RowType.SINGLE || preceding_row.row_type === RowType.START) {
-        const single_slot = preceding_row.rectangles[0]?.slot_index;
+        const single_slot = preceding_row.tiles[0]?.slot_index;
         if (single_slot === undefined) {
             return Math.random() < 0.5 ? [0, 2] : [1, 3];
         }
@@ -125,7 +125,7 @@ function determine_double_slots(preceding_row: RowData | null): [number, number]
     }
 
     if (preceding_row.row_type === RowType.DOUBLE) {
-        const occupied_slots = preceding_row.rectangles.map(r => r.slot_index);
+        const occupied_slots = preceding_row.tiles.map(r => r.slot_index);
 
         if (occupied_slots.includes(0) && occupied_slots.includes(2)) {
             return [1, 3];
@@ -146,7 +146,7 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
     // Create start row first
     const start_y = SCREEN_CONFIG.HEIGHT - SCREEN_CONFIG.BASE_ROW_HEIGHT * 2;
     const start_slot = Math.floor(Math.random() * 4);
-    const start_rectangle = create_rectangle(start_slot, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
+    const start_tile = create_tile(start_slot, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
 
     rows.push({
         row_index: 0,
@@ -154,7 +154,7 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
         height_multiplier: 1,
         y_position: start_y,
         height: SCREEN_CONFIG.BASE_ROW_HEIGHT,
-        rectangles: [start_rectangle],
+        tiles: [start_tile],
         is_completed: false,
         is_active: true,
     });
@@ -170,14 +170,14 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
 
         const row_index = i + 1; // +1 because start row is index 0
         const preceding_row = rows[rows.length - 1]; // Get the last added row
-        let rectangles: TileData[] = [];
+        let tiles: TileData[] = [];
 
         if (row_data.type === RowType.SINGLE) {
             let slot: number;
 
             // If preceded by a double, choose from the empty slots (gaps)
             if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
-                const occupied = preceding_row.rectangles.map(r => r.slot_index);
+                const occupied = preceding_row.tiles.map(r => r.slot_index);
                 const empty_slots = [0, 1, 2, 3].filter(s => !occupied.includes(s));
                 const chosen_slot = empty_slots[Math.floor(Math.random() * empty_slots.length)];
                 slot = chosen_slot ?? 0;
@@ -188,14 +188,14 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
                 slot = chosen_slot ?? 0;
             }
 
-            rectangles = [create_rectangle(slot, current_y, row_height, COLORS.BLACK, 1.0)];
+            tiles = [create_tile(slot, current_y, row_height, COLORS.BLACK, 1.0)];
             last_single_slot = slot;
         } else if (row_data.type === RowType.DOUBLE) {
             // Use preceding row to determine slots
             const slots = determine_double_slots(preceding_row ?? null);
-            rectangles = slots.map(slot => create_rectangle(slot, current_y, row_height, COLORS.BLACK, 1.0));
+            tiles = slots.map(slot => create_tile(slot, current_y, row_height, COLORS.BLACK, 1.0));
         }
-        // EMPTY rows have no rectangles
+        // EMPTY rows have no tiles
 
         rows.push({
             row_index: row_index,
@@ -203,7 +203,7 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
             height_multiplier: row_data.height_multiplier,
             y_position: current_y,
             height: row_height,
-            rectangles,
+            tiles,
             is_completed: row_data.type === RowType.EMPTY,
             is_active: false,
         });
@@ -495,13 +495,13 @@ export class GameStateManager {
 
         const active_row = this.get_active_row();
         if (active_row) {
-            for (const rect of active_row.rectangles) {
+            for (const rect of active_row.tiles) {
                 if (rect.is_holding && !rect.is_pressed) {
                     rect.progress += scroll_delta;
                     if (rect.progress >= rect.height) {
                         rect.progress = rect.height;
                         rect.is_holding = false;
-                        this.complete_rectangle(rect, active_row, rect.y + this.game_data.scroll_offset, false);
+                        this.complete_tile(rect, active_row, rect.y + this.game_data.scroll_offset, false);
                     }
                 }
             }
@@ -531,7 +531,7 @@ export class GameStateManager {
         if (is_long_tile) {
             const long_tile_trigger = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
             if (long_tile_trigger >= trigger_y) {
-                for (const rect of active_row.rectangles) {
+                for (const rect of active_row.tiles) {
                     if (!rect.is_pressed && !rect.is_holding) {
                         rect.is_holding = true;
                         // Start progress bar from base tile height for long tiles
@@ -556,10 +556,10 @@ export class GameStateManager {
             }
         } else {
             if (row_top >= trigger_y) {
-                for (const rect of active_row.rectangles) {
+                for (const rect of active_row.tiles) {
                     if (!rect.is_pressed) {
-                        // Use press_rectangle to play sound
-                        this.press_rectangle(rect, active_row, rect.y + this.game_data.scroll_offset);
+                        // Use press_tile to play sound
+                        this.press_tile(rect, active_row, rect.y + this.game_data.scroll_offset);
                     }
                 }
             }
@@ -638,13 +638,13 @@ export class GameStateManager {
         const start_row = this.game_data.rows.find(r => r.row_type === RowType.START);
 
         if (is_down && this.game_data.state === GameState.PAUSED && start_row && !start_row.is_completed) {
-            const start_rect = start_row.rectangles[0];
+            const start_rect = start_row.tiles[0];
             if (start_rect) {
                 const start_screen_y = start_rect.y + this.game_data.scroll_offset;
                 if (
                     point_in_rect(screen_x, screen_y, start_rect.x, start_screen_y, start_rect.width, start_rect.height)
                 ) {
-                    this.press_rectangle(start_rect, start_row, start_screen_y);
+                    this.press_tile(start_rect, start_row, start_screen_y);
                     this.game_data.state = GameState.PLAYING;
                     return true;
                 }
@@ -659,7 +659,7 @@ export class GameStateManager {
 
         const row_top = active_row.y_position + this.game_data.scroll_offset;
         const row_bottom = row_top + active_row.height;
-        const pressed_rect = active_row.rectangles.find(r => r.slot_index === slot_index);
+        const pressed_rect = active_row.tiles.find(r => r.slot_index === slot_index);
 
         if (this.config.is_bot_active) {
             if (is_down) {
@@ -675,12 +675,7 @@ export class GameStateManager {
                 pressed_rect.is_holding = false;
                 if (pressed_rect.progress < pressed_rect.height) {
                     pressed_rect.is_released_early = true;
-                    this.complete_rectangle(
-                        pressed_rect,
-                        active_row,
-                        pressed_rect.y + this.game_data.scroll_offset,
-                        true,
-                    );
+                    this.complete_tile(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset, true);
                 }
             }
             return false;
@@ -723,7 +718,7 @@ export class GameStateManager {
                 }
                 return true;
             } else {
-                this.press_rectangle(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
+                this.press_tile(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
                 return true;
             }
         } else if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
@@ -742,10 +737,10 @@ export class GameStateManager {
         const start_row = this.game_data.rows.find(r => r.row_type === RowType.START);
 
         if (is_down && this.game_data.state === GameState.PAUSED && start_row && !start_row.is_completed) {
-            const start_rect = start_row.rectangles[0];
+            const start_rect = start_row.tiles[0];
             if (start_rect && start_rect.slot_index === slot_index) {
                 const start_screen_y = start_rect.y + this.game_data.scroll_offset;
-                this.press_rectangle(start_rect, start_row, start_screen_y);
+                this.press_tile(start_rect, start_row, start_screen_y);
                 this.game_data.state = GameState.PLAYING;
                 return true;
             }
@@ -760,7 +755,7 @@ export class GameStateManager {
         const row_bottom = active_row.y_position + this.game_data.scroll_offset + active_row.height;
         const timing_zone = SCREEN_CONFIG.HEIGHT / 2;
 
-        const pressed_rect = active_row.rectangles.find(r => r.slot_index === slot_index);
+        const pressed_rect = active_row.tiles.find(r => r.slot_index === slot_index);
 
         if (this.config.is_bot_active) {
             if (is_down) {
@@ -779,12 +774,7 @@ export class GameStateManager {
                 pressed_rect.is_holding = false;
                 if (pressed_rect.progress < pressed_rect.height) {
                     pressed_rect.is_released_early = true;
-                    this.complete_rectangle(
-                        pressed_rect,
-                        active_row,
-                        pressed_rect.y + this.game_data.scroll_offset,
-                        true,
-                    );
+                    this.complete_tile(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset, true);
                 }
             }
             return false;
@@ -822,7 +812,7 @@ export class GameStateManager {
                 }
                 return true;
             } else {
-                this.press_rectangle(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
+                this.press_tile(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
                 return true;
             }
         } else if (!pressed_rect) {
@@ -836,14 +826,14 @@ export class GameStateManager {
         return false;
     }
 
-    private complete_rectangle(rect: TileData, row: RowData, screen_y: number, early_release: boolean): void {
+    private complete_tile(rect: TileData, row: RowData, screen_y: number, early_release: boolean): void {
         rect.is_pressed = true;
 
         // Start the game stopwatch when the first black tile is pressed (fallback for long tiles)
         if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
             this.game_data.playback_stopwatch = 0;
-            console.log(`[GameState] Game started via complete_rectangle (fallback for long tile)`);
+            console.log(`[GameState] Game started via complete_tile (fallback for long tile)`);
         }
 
         if (!early_release) {
@@ -857,14 +847,14 @@ export class GameStateManager {
         this.check_row_completion(row);
     }
 
-    private press_rectangle(rect: TileData, row: RowData, screen_y: number): void {
+    private press_tile(rect: TileData, row: RowData, screen_y: number): void {
         // Check for music section transition on first tile press of new section
         this.check_and_update_music_for_row(row);
         // Start the game stopwatch when the first black tile is pressed
         if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
             this.game_data.playback_stopwatch = 0;
-            console.log(`[GameState] Game started via press_rectangle (normal tile)`);
+            console.log(`[GameState] Game started via press_tile (normal tile)`);
         }
 
         // Resume stopwatch for the current tile press
@@ -874,7 +864,7 @@ export class GameStateManager {
         if (row.row_type !== RowType.START && !row.is_completed) {
             this.play_tile_sound();
         }
-        this.complete_rectangle(rect, row, screen_y, false);
+        this.complete_tile(rect, row, screen_y, false);
     }
 
     private check_row_completion(row: RowData): void {
@@ -883,7 +873,7 @@ export class GameStateManager {
             return;
         }
 
-        const all_pressed = row.rectangles.every(r => r.is_pressed);
+        const all_pressed = row.tiles.every(r => r.is_pressed);
         if (all_pressed) {
             row.is_completed = true;
             row.is_active = false;
@@ -1012,7 +1002,7 @@ export class GameStateManager {
         };
 
         this.game_data.game_over_flash = {
-            rectangle: indicator,
+            tile: indicator,
             start_time: performance.now(),
             flash_count: 0,
             is_flashing: true,
@@ -1025,10 +1015,10 @@ export class GameStateManager {
         // Play game over chord
         this.audio_manager.play_game_over_chord();
 
-        const unpressed_rect = active_row.rectangles.find(r => !r.is_pressed);
+        const unpressed_rect = active_row.tiles.find(r => !r.is_pressed);
         if (unpressed_rect) {
             this.game_data.game_over_flash = {
-                rectangle: unpressed_rect,
+                tile: unpressed_rect,
                 start_time: performance.now(),
                 flash_count: 0,
                 is_flashing: true,
@@ -1081,13 +1071,13 @@ export class GameStateManager {
 
         if (elapsed >= total_duration) {
             flash_state.is_flashing = false;
-            flash_state.rectangle.flash_state = false;
+            flash_state.tile.flash_state = false;
             return;
         }
 
         const flash_count = Math.floor(elapsed / flash_interval);
         flash_state.flash_count = flash_count;
-        flash_state.rectangle.flash_state = flash_count % 2 === 0;
+        flash_state.tile.flash_state = flash_count % 2 === 0;
     }
 
     update_game_over_animation(current_time: number): void {
@@ -1129,7 +1119,7 @@ export class GameStateManager {
 
     get_game_over_indicator(): TileData | null {
         if (this.game_data.game_over_flash) {
-            return this.game_data.game_over_flash.rectangle;
+            return this.game_data.game_over_flash.tile;
         }
         return null;
     }

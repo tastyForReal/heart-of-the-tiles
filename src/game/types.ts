@@ -44,7 +44,7 @@ export interface RowData {
     height_multiplier: number;
     y_position: number;
     height: number;
-    rectangles: TileData[];
+    tiles: TileData[];
     is_completed: boolean;
     is_active: boolean;
 }
@@ -70,7 +70,7 @@ export enum GameState {
 }
 
 export interface GameOverFlashState {
-    rectangle: TileData;
+    tile: TileData;
     start_time: number;
     flash_count: number;
     is_flashing: boolean;

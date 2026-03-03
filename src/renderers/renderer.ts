@@ -15,7 +15,7 @@ interface RectangleVertex {
  */
 export class Renderer {
     private gpu_context: GPUContext;
-    private rectangle_pipeline: GPURenderPipeline | null = null;
+    private tile_pipeline: GPURenderPipeline | null = null;
     private vertex_buffer: GPUBuffer | null = null;
     private uniform_buffer: GPUBuffer | null = null;
     private bind_group: GPUBindGroup | null = null;
@@ -33,7 +33,7 @@ export class Renderer {
             return false;
         }
 
-        const rectangle_shader = this.gpu_context.create_shader_module(`
+        const tile_shader = this.gpu_context.create_shader_module(`
             struct Uniforms {
                 screen_width: f32,
                 screen_height: f32,
@@ -70,7 +70,7 @@ export class Renderer {
             }
         `);
 
-        if (!rectangle_shader) {
+        if (!tile_shader) {
             return false;
         }
 
@@ -113,10 +113,10 @@ export class Renderer {
             bindGroupLayouts: [this.bind_group_layout],
         });
 
-        this.rectangle_pipeline = device.createRenderPipeline({
+        this.tile_pipeline = device.createRenderPipeline({
             layout: pipeline_layout,
             vertex: {
-                module: rectangle_shader,
+                module: tile_shader,
                 entryPoint: "vertex_main",
                 buffers: [
                     {
@@ -137,7 +137,7 @@ export class Renderer {
                 ],
             },
             fragment: {
-                module: rectangle_shader,
+                module: tile_shader,
                 entryPoint: "fragment_main",
                 targets: [
                     {
@@ -165,7 +165,7 @@ export class Renderer {
         return true;
     }
 
-    private create_rectangle_vertices(rect: TileData, scroll_offset: number): RectangleVertex[] {
+    private create_tile_vertices(rect: TileData, scroll_offset: number): RectangleVertex[] {
         const [r, g, b, _] = hex_to_rgba(rect.color);
 
         const effective_opacity = rect.flash_state ? rect.opacity * 0.5 : rect.opacity;
@@ -316,7 +316,7 @@ export class Renderer {
         const device = this.gpu_context.get_device();
         const context = this.gpu_context.get_context();
 
-        if (!device || !context || !this.rectangle_pipeline || !this.bind_group) {
+        if (!device || !context || !this.tile_pipeline || !this.bind_group) {
             return;
         }
 
@@ -339,14 +339,14 @@ export class Renderer {
         all_vertices.push(...bg_vertices);
 
         for (const row of visible_rows) {
-            for (const rect of row.rectangles) {
-                const vertices = this.create_rectangle_vertices(rect, scroll_offset);
+            for (const rect of row.tiles) {
+                const vertices = this.create_tile_vertices(rect, scroll_offset);
                 all_vertices.push(...vertices);
             }
         }
 
         if (game_over_indicator) {
-            const vertices = this.create_rectangle_vertices(game_over_indicator, scroll_offset);
+            const vertices = this.create_tile_vertices(game_over_indicator, scroll_offset);
             all_vertices.push(...vertices);
         }
 
@@ -420,7 +420,7 @@ export class Renderer {
             ],
         });
 
-        render_pass.setPipeline(this.rectangle_pipeline);
+        render_pass.setPipeline(this.tile_pipeline);
         render_pass.setBindGroup(0, this.bind_group);
 
         render_pass.setVertexBuffer(0, this.vertex_buffer);

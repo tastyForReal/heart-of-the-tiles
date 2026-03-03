@@ -17,7 +17,7 @@ export function calculate_column_width(): number {
     return SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
 }
 
-export function create_rectangle(
+export function create_tile(
     slot_index: number,
     y_position: number,
     height: number,
@@ -47,7 +47,7 @@ export function create_start_row(): { row: RowData; slot_index: number } {
 
     const slot_index = random_int(0, 3);
 
-    const rectangle = create_rectangle(slot_index, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
+    const tile = create_tile(slot_index, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
 
     return {
         row: {
@@ -56,7 +56,7 @@ export function create_start_row(): { row: RowData; slot_index: number } {
             height_multiplier: 1,
             y_position: start_y,
             height: SCREEN_CONFIG.BASE_ROW_HEIGHT,
-            rectangles: [rectangle],
+            tiles: [tile],
             is_completed: false,
             is_active: true,
         },
@@ -74,7 +74,7 @@ function determine_double_slots(preceding_row: RowData | null): [number, number]
     }
 
     if (preceding_row.row_type === RowType.SINGLE || preceding_row.row_type === RowType.START) {
-        const single_slot = preceding_row.rectangles[0]?.slot_index;
+        const single_slot = preceding_row.tiles[0]?.slot_index;
         if (single_slot === undefined) {
             return random_int(0, 1) === 0 ? [0, 2] : [1, 3];
         }
@@ -87,7 +87,7 @@ function determine_double_slots(preceding_row: RowData | null): [number, number]
     }
 
     if (preceding_row.row_type === RowType.DOUBLE) {
-        const occupied_slots = preceding_row.rectangles.map(r => r.slot_index);
+        const occupied_slots = preceding_row.tiles.map(r => r.slot_index);
 
         if (occupied_slots.includes(0) && occupied_slots.includes(2)) {
             return [1, 3];
@@ -114,7 +114,7 @@ function generate_single_row(
     let slot: number;
 
     if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
-        const occupied = preceding_row.rectangles.map(r => r.slot_index);
+        const occupied = preceding_row.tiles.map(r => r.slot_index);
         const empty_slots = [0, 1, 2, 3].filter(s => !occupied.includes(s));
         const chosen_slot = empty_slots[random_int(0, empty_slots.length - 1)];
         slot = chosen_slot ?? 0;
@@ -124,7 +124,7 @@ function generate_single_row(
         slot = chosen_slot ?? 0;
     }
 
-    const rectangle = create_rectangle(slot, y_position, height, COLORS.BLACK, 1.0);
+    const tile = create_tile(slot, y_position, height, COLORS.BLACK, 1.0);
 
     return {
         row: {
@@ -133,7 +133,7 @@ function generate_single_row(
             height_multiplier: Math.round(height / SCREEN_CONFIG.BASE_ROW_HEIGHT),
             y_position,
             height,
-            rectangles: [rectangle],
+            tiles: [tile],
             is_completed: false,
             is_active: false,
         },
@@ -148,7 +148,7 @@ function generate_double_row(
     preceding_row: RowData | null,
 ): RowData {
     const slots = determine_double_slots(preceding_row);
-    const rectangles = slots.map(slot => create_rectangle(slot, y_position, height, COLORS.BLACK, 1.0));
+    const tiles = slots.map(slot => create_tile(slot, y_position, height, COLORS.BLACK, 1.0));
 
     return {
         row_index,
@@ -156,7 +156,7 @@ function generate_double_row(
         height_multiplier: Math.round(height / SCREEN_CONFIG.BASE_ROW_HEIGHT),
         y_position,
         height,
-        rectangles,
+        tiles,
         is_completed: false,
         is_active: false,
     };
@@ -169,7 +169,7 @@ function generate_empty_row(row_index: number, y_position: number, height: numbe
         height_multiplier: Math.round(height / SCREEN_CONFIG.BASE_ROW_HEIGHT),
         y_position,
         height,
-        rectangles: [],
+        tiles: [],
         is_completed: true,
         is_active: false,
     };
