@@ -530,9 +530,6 @@ export class GameStateManager {
 
         if (is_long_tile) {
             const long_tile_trigger = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
-            console.log(
-                `[GameState] Bot: Long tile check - row_bottom: ${row_bottom.toFixed(1)}, trigger: ${trigger_y.toFixed(1)}, threshold: ${long_tile_trigger.toFixed(1)}`,
-            );
             if (long_tile_trigger >= trigger_y) {
                 for (const rect of active_row.rectangles) {
                     if (!rect.is_pressed && !rect.is_holding) {
@@ -544,10 +541,16 @@ export class GameStateManager {
                         // Start the game stopwatch when the first black tile is pressed
                         if (!this.game_data.has_game_started) {
                             this.game_data.has_game_started = true;
+                            this.game_data.playback_stopwatch = 0;
                             console.log(`[GameState] Game started via bot (long tile)`);
                         }
+                        // Resume stopwatch for long tile holding
+                        this.resume_stopwatch_for_row(active_row);
                         // Play sound when bot starts holding a long tile
                         this.play_tile_sound();
+                    } else if (rect.is_holding) {
+                        // Keep stopwatch resumed while holding
+                        this.resume_stopwatch_for_row(active_row);
                     }
                 }
             }
