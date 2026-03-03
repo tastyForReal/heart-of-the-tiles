@@ -736,6 +736,19 @@ export class GameStateManager {
             return false;
         }
 
+        const start_row = this.game_data.rows.find(r => r.row_type === RowType.START);
+
+        if (is_down && this.game_data.state === GameState.PAUSED && start_row && !start_row.is_completed) {
+            const start_rect = start_row.rectangles[0];
+            if (start_rect && start_rect.slot_index === slot_index) {
+                const start_screen_y = start_rect.y + this.game_data.scroll_offset;
+                this.press_rectangle(start_rect, start_row, start_screen_y);
+                this.game_data.state = GameState.PLAYING;
+                return true;
+            }
+            return false;
+        }
+
         const active_row = this.get_active_row();
         if (!active_row) {
             return false;
