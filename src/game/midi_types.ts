@@ -194,6 +194,10 @@ export interface ParsedPart {
 export interface RawMusicEntry {
     id: number;
     bpm?: number;
+    /**
+     * Property baseBeats is kept in camelCase to maintain compatibility with existing
+     * JSON level files. Do not rename to base_beats.
+     */
     baseBeats: number;
     scores: string[];
 }
@@ -202,14 +206,18 @@ export interface RawMusicEntry {
  * Raw JSON file format.
  */
 export interface RawMusicInputFile {
+    /**
+     * Property baseBpm is kept in camelCase to maintain compatibility with existing
+     * JSON level files. Do not rename to base_bpm.
+     */
     baseBpm: number;
     musics: RawMusicEntry[];
 }
 
 /**
- * Mapping of baseBeats string values to multiplier integers.
+ * Mapping of base_beats string values to multiplier integers.
  */
-export const BASEBEATS_MAP: Record<string, number> = {
+export const BASE_BEATS_MAP: Record<string, number> = {
     "15": 1,
     "7.5": 2,
     "5": 3,

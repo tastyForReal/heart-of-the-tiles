@@ -6,7 +6,7 @@ import {
     MidiTrack,
     MidiTempo,
     NOTE_TO_MIDI,
-    BASEBEATS_MAP,
+    BASE_BEATS_MAP,
 } from "./midi_types.js";
 import { RowType } from "./types.js";
 
@@ -30,11 +30,11 @@ export function get_note_number(note_name: string): number {
 export function get_base_beats_multiplier(base_beats_str: string): number {
     // Handle both string and number inputs
     const key = String(base_beats_str);
-    const value = BASEBEATS_MAP[key];
+    const value = BASE_BEATS_MAP[key];
     if (value !== undefined) {
         return value;
     }
-    throw new Error(`Unknown baseBeats value: ${base_beats_str}`);
+    throw new Error(`Unknown base_beats value: ${base_beats_str}`);
 }
 
 /**
@@ -246,13 +246,13 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
             if ((char === "<" || (char >= "0" && char <= "9")) && mode === 0) {
                 continue;
             }
-            const lookAheadChar = score[i];
+            const look_ahead_char = score[i];
             if (
-                lookAheadChar !== undefined &&
-                (lookAheadChar === ">" ||
-                    lookAheadChar === "{" ||
-                    lookAheadChar === "}" ||
-                    (lookAheadChar >= "0" && lookAheadChar <= "9")) &&
+                look_ahead_char !== undefined &&
+                (look_ahead_char === ">" ||
+                    look_ahead_char === "{" ||
+                    look_ahead_char === "}" ||
+                    (look_ahead_char >= "0" && look_ahead_char <= "9")) &&
                 mode === 5
             ) {
                 continue;
@@ -261,29 +261,29 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
             // Parse a token (note name or length code)
             let temp = "";
             while (true) {
-                const currentChar = score[i];
-                if (currentChar === undefined) break;
-                temp += currentChar;
+                const current_char = score[i];
+                if (current_char === undefined) break;
+                temp += current_char;
                 i++;
-                const lookAhead = score[i];
+                const look_ahead = score[i];
                 if (
                     i === score.length ||
-                    lookAhead === "." ||
-                    lookAhead === "(" ||
-                    lookAhead === ")" ||
-                    lookAhead === "~" ||
-                    lookAhead === "[" ||
-                    lookAhead === "]" ||
-                    lookAhead === "," ||
-                    lookAhead === ";" ||
-                    lookAhead === "<" ||
-                    lookAhead === ">" ||
-                    lookAhead === "@" ||
-                    lookAhead === "%" ||
-                    lookAhead === "!" ||
-                    lookAhead === "$" ||
-                    lookAhead === "^" ||
-                    lookAhead === "&"
+                    look_ahead === "." ||
+                    look_ahead === "(" ||
+                    look_ahead === ")" ||
+                    look_ahead === "~" ||
+                    look_ahead === "[" ||
+                    look_ahead === "]" ||
+                    look_ahead === "," ||
+                    look_ahead === ";" ||
+                    look_ahead === "<" ||
+                    look_ahead === ">" ||
+                    look_ahead === "@" ||
+                    look_ahead === "%" ||
+                    look_ahead === "!" ||
+                    look_ahead === "$" ||
+                    look_ahead === "^" ||
+                    look_ahead === "&"
                 ) {
                     i--;
                     break;
@@ -635,7 +635,7 @@ export function verify_track_length(tracks: ParsedTrack[]): void {
  */
 export function parse_song(
     musics: Array<{ bpm?: string | number; baseBeats: string | number; scores: string[] }>,
-    base_bpm?: number,
+    baseBpm?: number,
 ): ParsedPart[] {
     const parts: ParsedPart[] = [];
 
@@ -645,12 +645,12 @@ export function parse_song(
             if (!music) continue;
             const base_beats_multiplier = get_base_beats_multiplier(String(music.baseBeats));
 
-            // Use music.bpm if defined, otherwise fall back to base_bpm
-            const music_bpm = music.bpm !== undefined ? Number(music.bpm) : (base_bpm ?? 120);
+            // Use music.bpm if defined, otherwise fall back to baseBpm
+            const music_bpm = music.bpm !== undefined ? Number(music.bpm) : (baseBpm ?? 120);
             const calculated_bpm = music_bpm * base_beats_multiplier;
 
             console.log(
-                `[MidiParser] Parsing part ${p}: BPM input=${music.bpm ?? "undefined (using baseBpm: " + (base_bpm ?? 120) + ")"}, baseBeats=${music.baseBeats}`,
+                `[MidiParser] Parsing part ${p}: BPM input=${music.bpm ?? "undefined (using baseBpm: " + (baseBpm ?? 120) + ")"}, baseBeats=${music.baseBeats}`,
             );
             console.log(`  - base_beats_multiplier: ${base_beats_multiplier}`);
             console.log(`  - music_bpm: ${music_bpm}`);
@@ -926,8 +926,8 @@ function calculate_tempo_times(tempos: MidiTempo[], ppq: number): void {
 function ticks_to_seconds(ticks: number, tempos: MidiTempo[], ppq: number): number {
     let time = 0;
     let current_ticks = 0;
-    const firstTempo = tempos[0];
-    let current_bpm = firstTempo ? firstTempo.bpm : 120;
+    const first_tempo = tempos[0];
+    let current_bpm = first_tempo ? first_tempo.bpm : 120;
 
     for (let i = 0; i < tempos.length; i++) {
         const tempo = tempos[i];
@@ -956,10 +956,10 @@ function ticks_to_seconds(ticks: number, tempos: MidiTempo[], ppq: number): numb
  */
 export function convert_raw_to_midi_json(
     musics: Array<{ bpm?: string | number; baseBeats: string | number; scores: string[] }>,
-    base_bpm?: number,
+    baseBpm?: number,
 ): MidiJson {
     console.log(`[MidiParser] Converting ${musics.length} music parts to MIDI format...`);
-    console.log(`[MidiParser] Base BPM (fallback): ${base_bpm ?? "not provided, will use 120"}`);
+    console.log(`[MidiParser] Base BPM (fallback): ${baseBpm ?? "not provided, will use 120"}`);
 
     for (let i = 0; i < musics.length; i++) {
         const music = musics[i];
@@ -969,7 +969,7 @@ export function convert_raw_to_midi_json(
         );
     }
 
-    const parts = parse_song(musics, base_bpm);
+    const parts = parse_song(musics, baseBpm);
     console.log(`[MidiParser] Parsed ${parts.length} parts`);
 
     for (let i = 0; i < parts.length; i++) {
@@ -1143,8 +1143,8 @@ function split_score(score: string): string[] {
                     if (depth === 0) break;
                 }
                 components.push(group_str);
-                const nextChar = score[i];
-                if (nextChar === ",") i++;
+                const next_char = score[i];
+                if (next_char === ",") i++;
             } else {
                 current += char;
                 i++;
@@ -1295,8 +1295,12 @@ function process_music(music: { id: number; baseBeats: number; scores: string[] 
  */
 export interface MusicEntry {
     id: number;
-    bpm?: number;
-    baseBeats: number; // JSON uses camelCase
+    bpm?: number | undefined;
+    /**
+     * Property baseBeats is kept in camelCase to maintain compatibility with existing
+     * JSON level files. Do not rename to base_beats.
+     */
+    baseBeats: number;
     scores: string[];
 }
 
@@ -1304,12 +1308,18 @@ export interface MusicEntry {
  * Input file format for level data (matches JSON format)
  */
 export interface MusicInputFile {
-    baseBpm: number; // JSON uses camelCase
+    /**
+     * Property baseBpm is kept in camelCase to maintain compatibility with existing
+     * JSON level files. Do not rename to base_bpm.
+     */
+    baseBpm: number;
     musics: MusicEntry[];
-    audition?: {
+    audition?:
+    | {
         start: [number, number];
         end: [number, number];
-    };
+    }
+    | undefined;
 }
 
 export interface MusicOutput {
@@ -1331,8 +1341,8 @@ function validate_music_input(data: unknown): MusicInputFile {
 
     const input = data as Record<string, unknown>;
 
-    const baseBpm = input["baseBpm"];
-    if (typeof baseBpm !== "number") {
+    const base_bpm = input["baseBpm"];
+    if (typeof base_bpm !== "number") {
         throw new Error('Invalid JSON structure: "baseBpm" must be a number and is required');
     }
 
@@ -1341,6 +1351,7 @@ function validate_music_input(data: unknown): MusicInputFile {
         throw new Error('Invalid JSON structure: "musics" array is required');
     }
 
+    const entry_list: MusicEntry[] = [];
     for (const music of musics) {
         if (!music || typeof music !== "object") {
             throw new Error("Invalid music entry: expected an object");
@@ -1355,9 +1366,20 @@ function validate_music_input(data: unknown): MusicInputFile {
         if (!Array.isArray(m["scores"])) {
             throw new Error('Invalid music entry: "scores" must be an array');
         }
+
+        entry_list.push({
+            id: m["id"],
+            bpm: typeof m["bpm"] === "number" ? m["bpm"] : undefined,
+            baseBeats: m["baseBeats"] as number,
+            scores: m["scores"] as string[],
+        });
     }
 
-    return data as MusicInputFile;
+    return {
+        baseBpm: base_bpm as number,
+        musics: entry_list,
+        audition: input["audition"] as { start: [number, number]; end: [number, number] } | undefined,
+    };
 }
 
 /**

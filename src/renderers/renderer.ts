@@ -52,7 +52,7 @@ export class Renderer {
             }
 
             @vertex
-            fn vertexMain(input: VertexInput) -> VertexOutput {
+            fn vertex_main(input: VertexInput) -> VertexOutput {
                 var output: VertexOutput;
                 
                 // Transform canvas pixel space (top-left origin) to WebGPU Normalized Device Coordinates (NDC)
@@ -65,7 +65,7 @@ export class Renderer {
             }
 
             @fragment
-            fn fragmentMain(input: VertexOutput) -> @location(0) vec4<f32> {
+            fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
                 return input.color;
             }
         `);
@@ -117,7 +117,7 @@ export class Renderer {
             layout: pipeline_layout,
             vertex: {
                 module: rectangle_shader,
-                entryPoint: "vertexMain",
+                entryPoint: "vertex_main",
                 buffers: [
                     {
                         arrayStride: 24,
@@ -138,7 +138,7 @@ export class Renderer {
             },
             fragment: {
                 module: rectangle_shader,
-                entryPoint: "fragmentMain",
+                entryPoint: "fragment_main",
                 targets: [
                     {
                         format: format,
@@ -212,11 +212,11 @@ export class Renderer {
                 const theta1 = (i / segments) * Math.PI;
                 const theta2 = ((i + 1) / segments) * Math.PI;
 
-                const orig_p1x = center_x + radius * Math.cos(theta1);
-                const orig_p1y = center_y - radius * Math.sin(theta1);
+                const orig_p1_x = center_x + radius * Math.cos(theta1);
+                const orig_p1_y = center_y - radius * Math.sin(theta1);
 
-                const orig_p2x = center_x + radius * Math.cos(theta2);
-                const orig_p2y = center_y - radius * Math.sin(theta2);
+                const orig_p2_x = center_x + radius * Math.cos(theta2);
+                const orig_p2_y = center_y - radius * Math.sin(theta2);
 
                 const clip_point = (px: number, py: number): [number, number] => {
                     if (py > row_bottom) {
@@ -232,16 +232,16 @@ export class Renderer {
                     return [px, py];
                 };
 
-                const [p1x, p1y] = clip_point(orig_p1x, orig_p1y);
-                const [p2x, p2y] = clip_point(orig_p2x, orig_p2y);
+                const [p1_x, p1_y] = clip_point(orig_p1_x, orig_p1_y);
+                const [p2_x, p2_y] = clip_point(orig_p2_x, orig_p2_y);
 
                 let cy = center_y;
                 if (cy > row_bottom) cy = row_bottom;
 
                 vertices.push(
                     { position: [center_x, cy], color: progress_color },
-                    { position: [p1x, p1y], color: progress_color },
-                    { position: [p2x, p2y], color: progress_color },
+                    { position: [p1_x, p1_y], color: progress_color },
+                    { position: [p2_x, p2_y], color: progress_color },
                 );
             }
         }

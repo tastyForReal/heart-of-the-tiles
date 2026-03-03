@@ -225,7 +225,7 @@ export class AudioManager {
      * Plays notes that should be heard at the current time.
      * Returns an array of note_ids that were played this update.
      */
-    update_midi_playback(current_time: number): number[] {
+    update_midi_playback(current_time: number, skipped_note_ids: number[] = []): number[] {
         if (!this.midi_data || !this.is_initialized || !this.audio_context) {
             return [];
         }
@@ -235,6 +235,7 @@ export class AudioManager {
         }
 
         let notes_played_this_update = 0;
+        let notes_skipped_this_update = 0;
         const played_note_ids: number[] = [];
 
         // Iterate through all tracks and play notes that should be triggered
@@ -252,29 +253,40 @@ export class AudioManager {
                 // 1. It must be at or before the current playback time
                 // 2. It must not have been played already
                 // 3. It must be within a reasonable lookback window (1 second) to avoid bursts on start
-                const lookback_window = 1.0;
+                const lookback_window = 2.0;
                 if (
                     note.time <= current_time &&
                     note.time > current_time - lookback_window &&
                     !this.played_notes.has(note_id)
                 ) {
-                    // Only play MIDI notes in valid range (21-108)
-                    if (note.midi >= 21 && note.midi <= 108) {
-                        this.play_note_by_midi(note.midi);
-                        notes_played_this_update++;
+                    // Check if note should be skipped (e.g., due to early release of long tile)
+                    const is_skipped = skipped_note_ids.includes(note_id);
+
+                    if (!is_skipped) {
+                        // Only play MIDI notes in valid range (21-108)
+                        if (note.midi >= 21 && note.midi <= 108) {
+                            this.play_note_by_midi(note.midi);
+                            notes_played_this_update++;
+                            console.log(
+                                `[AudioManager] Playing note: MIDI ${note.midi} at time ${note.time.toFixed(3)}s (current: ${current_time.toFixed(3)}s, track: ${track_idx})`,
+                            );
+                        }
+                    } else {
+                        notes_skipped_this_update++;
                         console.log(
-                            `[AudioManager] Playing note: MIDI ${note.midi} at time ${note.time.toFixed(3)}s (current: ${current_time.toFixed(3)}s, track: ${track_idx})`,
+                            `[AudioManager] Skipping note (early release): MIDI ${note.midi} at time ${note.time.toFixed(3)}s`,
                         );
                     }
+
                     this.played_notes.add(note_id);
                     played_note_ids.push(note_id);
                 }
             }
         }
 
-        if (notes_played_this_update > 0) {
+        if (notes_played_this_update > 0 || notes_skipped_this_update > 0) {
             console.log(
-                `[AudioManager] Update at ${current_time.toFixed(3)}s: played ${notes_played_this_update} notes, total played: ${this.played_notes.size}`,
+                `[AudioManager] Update at ${current_time.toFixed(3)}s: played ${notes_played_this_update}, skipped ${notes_skipped_this_update} notes, total played ${this.played_notes.size}`,
             );
         }
 

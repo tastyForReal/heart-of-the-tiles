@@ -40,23 +40,23 @@ export class InputHandler {
 
             event.preventDefault();
 
-            let clientX: number, clientY: number;
+            let client_x: number, client_y: number;
             if (window.TouchEvent && event instanceof TouchEvent) {
                 const touch = event.changedTouches[0];
                 if (touch) {
-                    clientX = touch.clientX;
-                    clientY = touch.clientY;
+                    client_x = touch.clientX;
+                    client_y = touch.clientY;
                 } else {
                     return;
                 }
             } else {
-                clientX = (event as MouseEvent).clientX;
-                clientY = (event as MouseEvent).clientY;
+                client_x = (event as MouseEvent).clientX;
+                client_y = (event as MouseEvent).clientY;
             }
 
             const rect = this.canvas.getBoundingClientRect();
-            const screen_x = clientX - rect.left;
-            const screen_y = clientY - rect.top;
+            const screen_x = client_x - rect.left;
+            const screen_y = client_y - rect.top;
 
             const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
             const slot_index = Math.floor(screen_x / column_width);

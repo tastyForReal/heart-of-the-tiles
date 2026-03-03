@@ -106,6 +106,20 @@ export interface GameData {
     is_midi_loaded: boolean; // Whether MIDI data is loaded from JSON
     has_game_started: boolean; // Whether the first black tile has been pressed (after yellow start tile)
     note_indicators: NoteIndicatorData[]; // Red 16x16 MIDI note indicator squares
+    is_stopwatch_resumed: boolean; // Whether the stopwatch is currently running for MIDI playback
+    stopwatch_target_time: number; // The next time threshold to stop the stopwatch
+    current_double_press_count: number; // Number of presses in the current double-tile row
+    skipped_note_ids: number[]; // IDs of notes to skip (e.g., from early release of long tiles)
+    level_row_timings: RowTiming[]; // Timings for each level row
+}
+
+/**
+ * Timing information for a row
+ */
+export interface RowTiming {
+    start_time: number;
+    mid_time: number;
+    end_time: number;
 }
 
 /**
