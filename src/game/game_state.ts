@@ -323,6 +323,10 @@ export class GameStateManager {
         );
     }
 
+    has_game_started(): boolean {
+        return this.game_data.has_game_started;
+    }
+
     /**
      * Calculates the current scroll speed based on TPS.
      * TPS = tiles per second, where each tile is BASE_ROW_HEIGHT pixels.

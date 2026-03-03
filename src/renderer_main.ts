@@ -148,22 +148,36 @@ function setup_pause_play_button(game_controller: GameController): void {
         return;
     }
 
+    // Hide button initially - it will be shown when game starts
+    pause_play_button.style.display = "none";
+
     const update_button_state = (): void => {
+        const has_started = game_controller.has_game_started();
         const is_paused = game_controller.is_paused();
         const icon = pause_play_button.querySelector(".material-symbols-outlined");
 
-        if (is_paused) {
-            pause_play_button.classList.remove("playing");
-            pause_play_button.classList.add("paused");
-            if (icon) {
-                icon.textContent = "play_arrow";
+        // Show button when game is playing (after yellow tile) OR when game has started (after black tile)
+        // This ensures button appears right after pressing yellow rectangle
+        const should_show_button = !is_paused || has_started;
+
+        if (should_show_button) {
+            pause_play_button.style.display = "flex";
+
+            if (is_paused) {
+                pause_play_button.classList.remove("playing");
+                pause_play_button.classList.add("paused");
+                if (icon) {
+                    icon.textContent = "play_arrow";
+                }
+            } else {
+                pause_play_button.classList.remove("paused");
+                pause_play_button.classList.add("playing");
+                if (icon) {
+                    icon.textContent = "pause";
+                }
             }
         } else {
-            pause_play_button.classList.remove("paused");
-            pause_play_button.classList.add("playing");
-            if (icon) {
-                icon.textContent = "pause";
-            }
+            pause_play_button.style.display = "none";
         }
     };
 

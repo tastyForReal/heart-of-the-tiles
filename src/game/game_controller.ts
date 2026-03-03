@@ -104,6 +104,13 @@ export class GameController {
         return this.game_state.is_paused();
     }
 
+    /**
+     * Returns true if the game has started (first tile pressed).
+     */
+    has_game_started(): boolean {
+        return this.game_state.has_game_started();
+    }
+
     private handle_reset(): void {
         this.game_state.reset();
     }
