@@ -168,7 +168,15 @@ export class GameController {
         const game_over_indicator = this.game_state.get_game_over_indicator();
         const scroll_offset = this.game_state.get_game_data().scroll_offset;
         const note_indicators = this.game_state.get_active_note_indicators();
-        this.renderer.render(visible_rows, particles, game_over_indicator, scroll_offset, note_indicators);
+        const start_tile_pressed = this.game_state.is_start_tile_pressed();
+        this.renderer.render(
+            visible_rows,
+            particles,
+            game_over_indicator,
+            scroll_offset,
+            note_indicators,
+            start_tile_pressed,
+        );
     }
 
     resize(width: number, height: number): void {

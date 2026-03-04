@@ -1,6 +1,7 @@
 import { GPUContext } from "./gpu_context.js";
+import { BMFontRenderer } from "./bm_font_renderer.js";
 import { hex_to_rgba } from "../utils/math_utils.js";
-import { RowData, TileData, ParticleData, SCREEN_CONFIG } from "../game/types.js";
+import { RowData, TileData, ParticleData, SCREEN_CONFIG, RowType } from "../game/types.js";
 import { NoteIndicatorData } from "../game/note_indicator.js";
 
 interface RectangleVertex {
@@ -15,6 +16,7 @@ interface RectangleVertex {
  */
 export class Renderer {
     private gpu_context: GPUContext;
+    private font_renderer: BMFontRenderer;
     private tile_pipeline: GPURenderPipeline | null = null;
     private vertex_buffer: GPUBuffer | null = null;
     private uniform_buffer: GPUBuffer | null = null;
@@ -23,6 +25,7 @@ export class Renderer {
 
     constructor(gpu_context: GPUContext) {
         this.gpu_context = gpu_context;
+        this.font_renderer = new BMFontRenderer(gpu_context);
     }
 
     async initialize(): Promise<boolean> {
@@ -54,7 +57,7 @@ export class Renderer {
             @vertex
             fn vertex_main(input: VertexInput) -> VertexOutput {
                 var output: VertexOutput;
-                
+
                 // Transform canvas pixel space (top-left origin) to WebGPU Normalized Device Coordinates (NDC)
                 // NDC: [-1, -1] bottom-left, [1, 1] top-right
                 let x = (input.position.x / uniforms.screen_width) * 2.0 - 1.0;
@@ -161,6 +164,18 @@ export class Renderer {
                 topology: "triangle-list",
             },
         });
+
+        // Initialize the BMFont renderer (texture path is read from .fnt file)
+        const font_initialized = await this.font_renderer.initialize(
+            "./assets/images/fonts/SofiaSansExtraCondensed.fnt",
+        );
+
+        if (!font_initialized) {
+            console.warn("Failed to initialize BMFont renderer, text will not be displayed");
+        } else {
+            console.log("BMFont renderer initialized successfully");
+            this.font_renderer.ensure_vertex_buffer();
+        }
 
         return true;
     }
@@ -312,6 +327,7 @@ export class Renderer {
         game_over_indicator: TileData | null,
         scroll_offset: number,
         note_indicators: NoteIndicatorData[] = [],
+        start_tile_pressed: boolean = false,
     ): void {
         const device = this.gpu_context.get_device();
         const context = this.gpu_context.get_context();
@@ -338,10 +354,23 @@ export class Renderer {
         ];
         all_vertices.push(...bg_vertices);
 
+        // Find start tile data for text rendering
+        let start_tile_data: { x: number; y: number; width: number; height: number } | null = null;
+
         for (const row of visible_rows) {
             for (const rect of row.tiles) {
                 const vertices = this.create_tile_vertices(rect, scroll_offset);
                 all_vertices.push(...vertices);
+
+                // Capture start tile data for text rendering
+                if (row.row_type === RowType.START && !rect.is_pressed) {
+                    start_tile_data = {
+                        x: rect.x,
+                        y: rect.y,
+                        width: rect.width,
+                        height: rect.height,
+                    };
+                }
             }
         }
 
@@ -427,9 +456,32 @@ export class Renderer {
 
         render_pass.draw(all_vertices.length);
 
+        // Render "START" text on yellow tile if it exists and hasn't been pressed
+        if (start_tile_data && !start_tile_pressed && this.font_renderer.is_loaded()) {
+            const text = "START";
+            const black_color: [number, number, number, number] = [0, 0, 0, 1]; // Black text
+
+            // Calculate scale to fit 95% of tile width
+            const scale = this.font_renderer.calculate_scale_for_tile(text, start_tile_data.width, 0.95);
+
+            // Calculate text position (centered in tile)
+            const text_width = this.font_renderer.get_text_width(text, scale);
+            const text_x = start_tile_data.x + (start_tile_data.width - text_width) / 2;
+            const text_y = start_tile_data.y + (start_tile_data.height - 128 * scale) / 2;
+
+            this.font_renderer.render_text(text, text_x, text_y, scale, black_color, scroll_offset, render_pass);
+        }
+
         render_pass.end();
 
         this.gpu_context.submit([encoder.finish()]);
+    }
+
+    /**
+     * Gets the font renderer for external access
+     */
+    get_font_renderer(): BMFontRenderer {
+        return this.font_renderer;
     }
 
     resize(_width: number, _height: number): void {
