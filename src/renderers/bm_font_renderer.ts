@@ -18,11 +18,16 @@ export class BMFontRenderer {
     private font_texture: GPUTexture | null = null;
     private font_sampler: GPUSampler | null = null;
     private text_pipeline: GPURenderPipeline | null = null;
-    private vertex_buffer: GPUBuffer | null = null;
     private uniform_buffer: GPUBuffer | null = null;
     private bind_group: GPUBindGroup | null = null;
     private bind_group_layout: GPUBindGroupLayout | null = null;
     private font_loaded: boolean = false;
+    /** Pool of vertex buffers to avoid buffer reuse issues within a single frame */
+    private vertex_buffer_pool: GPUBuffer[] = [];
+    /** Index of the next available buffer in the pool */
+    private pool_index: number = 0;
+    /** Maximum number of buffers in the pool */
+    private static readonly MAX_POOL_SIZE = 16;
 
     constructor(gpu_context: GPUContext) {
         this.gpu_context = gpu_context;
@@ -59,9 +64,8 @@ export class BMFontRenderer {
             // Construct the texture URL from the font URL's directory
             const font_url_parts = font_url.split("/");
             font_url_parts.pop(); // Remove the .fnt filename
-            const texture_url = font_url_parts.length > 0
-                ? `${font_url_parts.join("/")}/${texture_filename}`
-                : texture_filename;
+            const texture_url =
+                font_url_parts.length > 0 ? `${font_url_parts.join("/")}/${texture_filename}` : texture_filename;
 
             // Load the texture atlas
             const texture_response = await fetch(texture_url);
@@ -267,7 +271,9 @@ export class BMFontRenderer {
     }
 
     /**
-     * Renders text at the specified position with the given parameters
+     * Renders text at the specified position with the given parameters.
+     * Uses a buffer pool to ensure each text render has its own vertex buffer,
+     * preventing race conditions when multiple texts are rendered in the same frame.
      */
     render_text(
         text: string,
@@ -278,7 +284,7 @@ export class BMFontRenderer {
         scroll_offset: number,
         render_pass: GPURenderPassEncoder,
     ): void {
-        if (!this.font_data || !this.text_pipeline || !this.bind_group || !this.vertex_buffer) {
+        if (!this.font_data || !this.text_pipeline || !this.bind_group) {
             return;
         }
 
@@ -308,21 +314,65 @@ export class BMFontRenderer {
             vertex_data[offset + 7] = vertex.color[3] ?? 0;
         }
 
-        // Update vertex buffer if needed
+        // Get a buffer from the pool (each text gets its own buffer)
         const buffer_size = vertex_data.byteLength;
-        if (!this.vertex_buffer || this.vertex_buffer.size < buffer_size) {
-            this.vertex_buffer = device.createBuffer({
-                size: Math.max(buffer_size, 1024 * 64), // At least 64KB
-                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-            });
+        const vertex_buffer = this.get_buffer_from_pool(buffer_size);
+
+        if (!vertex_buffer) {
+            return;
         }
 
-        device.queue.writeBuffer(this.vertex_buffer, 0, vertex_data);
+        device.queue.writeBuffer(vertex_buffer, 0, vertex_data);
 
         render_pass.setPipeline(this.text_pipeline);
         render_pass.setBindGroup(0, this.bind_group);
-        render_pass.setVertexBuffer(0, this.vertex_buffer);
+        render_pass.setVertexBuffer(0, vertex_buffer);
         render_pass.draw(vertices.length);
+    }
+
+    /**
+     * Gets a vertex buffer from the pool, creating a new one if necessary.
+     * Each buffer is only used once per frame to avoid race conditions.
+     */
+    private get_buffer_from_pool(required_size: number): GPUBuffer | null {
+        const device = this.gpu_context.get_device();
+        if (!device) {
+            return null;
+        }
+
+        // Ensure the buffer is at least 1KB to avoid tiny buffers
+        const buffer_size = Math.max(required_size, 1024);
+
+        // Check if we have an available buffer in the pool
+        if (this.pool_index < this.vertex_buffer_pool.length) {
+            const existing_buffer = this.vertex_buffer_pool[this.pool_index];
+            if (existing_buffer && existing_buffer.size >= buffer_size) {
+                this.pool_index++;
+                return existing_buffer;
+            }
+        }
+
+        // Create a new buffer if pool is exhausted or existing buffer is too small
+        const new_buffer = device.createBuffer({
+            size: Math.max(buffer_size, 1024 * 16), // At least 16KB
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+
+        // Add to pool if we haven't reached the max
+        if (this.vertex_buffer_pool.length < BMFontRenderer.MAX_POOL_SIZE) {
+            this.vertex_buffer_pool.push(new_buffer);
+        }
+
+        this.pool_index++;
+        return new_buffer;
+    }
+
+    /**
+     * Resets the buffer pool index at the start of each frame.
+     * Should be called once per frame before any text rendering.
+     */
+    reset_buffer_pool(): void {
+        this.pool_index = 0;
     }
 
     /**
@@ -395,21 +445,6 @@ export class BMFontRenderer {
     }
 
     /**
-     * Ensures the vertex buffer is created
-     */
-    ensure_vertex_buffer(): void {
-        if (!this.vertex_buffer) {
-            const device = this.gpu_context.get_device();
-            if (device) {
-                this.vertex_buffer = device.createBuffer({
-                    size: 1024 * 64, // 64KB initial size
-                    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-                });
-            }
-        }
-    }
-
-    /**
      * Calculates the width of text at a given scale
      */
     get_text_width(text: string, scale: number): number {
@@ -417,5 +452,13 @@ export class BMFontRenderer {
             return 0;
         }
         return calculate_text_width(text, this.font_data, scale);
+    }
+
+    /**
+     * Prepares the renderer for a new frame.
+     * Resets the buffer pool so buffers can be reused.
+     */
+    begin_frame(): void {
+        this.reset_buffer_pool();
     }
 }

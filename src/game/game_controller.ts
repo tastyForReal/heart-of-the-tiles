@@ -4,6 +4,7 @@ import { GameStateManager, GameConfig, DEFAULT_GAME_CONFIG } from "./game_state.
 import { InputHandler } from "./input_handler.js";
 import { GameState, InputType } from "./types.js";
 import { LevelData, RowTypeResult } from "./json_level_reader.js";
+import { ScoreRenderer } from "./score_renderer.js";
 
 /**
  * Orchestrates the main game loop (`requestAnimationFrame`) and bridges WebGPU rendering with pure game logic state.
@@ -16,6 +17,7 @@ export class GameController {
     private last_frame_time: number = 0;
     private is_running: boolean = false;
     private animation_frame_id: number | null = null;
+    private score_renderer: ScoreRenderer | null = null;
 
     constructor(config?: Partial<GameConfig>) {
         this.gpu_context = new GPUContext();
@@ -43,6 +45,9 @@ export class GameController {
         }
 
         this.input_handler.initialize(canvas);
+
+        // Initialize the score renderer with the font renderer from the main renderer
+        this.score_renderer = new ScoreRenderer(this.renderer.get_font_renderer());
 
         this.setup_input_callbacks();
 
@@ -160,6 +165,7 @@ export class GameController {
         this.game_state.update_game_over_flash(current_time);
         this.game_state.update_game_over_animation(current_time);
         this.game_state.update_game_won(current_time);
+        this.game_state.update_score(current_time);
     }
 
     private render(): void {
@@ -169,6 +175,7 @@ export class GameController {
         const scroll_offset = this.game_state.get_game_data().scroll_offset;
         const note_indicators = this.game_state.get_active_note_indicators();
         const start_tile_pressed = this.game_state.is_start_tile_pressed();
+        const score_data = this.game_state.get_score_data();
         this.renderer.render(
             visible_rows,
             particles,
@@ -176,6 +183,8 @@ export class GameController {
             scroll_offset,
             note_indicators,
             start_tile_pressed,
+            score_data,
+            this.score_renderer,
         );
     }
 

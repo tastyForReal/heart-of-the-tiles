@@ -3,6 +3,8 @@ import { BMFontRenderer } from "./bm_font_renderer.js";
 import { hex_to_rgba } from "../utils/math_utils.js";
 import { RowData, TileData, ParticleData, SCREEN_CONFIG, RowType } from "../game/types.js";
 import { NoteIndicatorData } from "../game/note_indicator.js";
+import { ScoreData } from "../game/score_types.js";
+import { ScoreRenderer } from "../game/score_renderer.js";
 
 interface RectangleVertex {
     position: [number, number];
@@ -174,7 +176,6 @@ export class Renderer {
             console.warn("Failed to initialize BMFont renderer, text will not be displayed");
         } else {
             console.log("BMFont renderer initialized successfully");
-            this.font_renderer.ensure_vertex_buffer();
         }
 
         return true;
@@ -328,6 +329,8 @@ export class Renderer {
         scroll_offset: number,
         note_indicators: NoteIndicatorData[] = [],
         start_tile_pressed: boolean = false,
+        score_data: ScoreData | null = null,
+        score_renderer: ScoreRenderer | null = null,
     ): void {
         const device = this.gpu_context.get_device();
         const context = this.gpu_context.get_context();
@@ -456,6 +459,10 @@ export class Renderer {
 
         render_pass.draw(all_vertices.length);
 
+        // Reset the font renderer's buffer pool for the new frame
+        // This ensures each text render in this frame gets its own buffer
+        this.font_renderer.begin_frame();
+
         // Render "START" text on yellow tile if it exists and hasn't been pressed
         if (start_tile_data && !start_tile_pressed && this.font_renderer.is_loaded()) {
             const text = "START";
@@ -470,6 +477,11 @@ export class Renderer {
             const text_y = start_tile_data.y + (start_tile_data.height - 128 * scale) / 2;
 
             this.font_renderer.render_text(text, text_x, text_y, scale, black_color, scroll_offset, render_pass);
+        }
+
+        // Render score counter and bonus labels if available
+        if (score_data && score_renderer && score_renderer.is_ready()) {
+            score_renderer.render(score_data, scroll_offset, render_pass);
         }
 
         render_pass.end();

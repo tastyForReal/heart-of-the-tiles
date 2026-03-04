@@ -16,6 +16,8 @@ import { point_in_rect } from "../utils/math_utils.js";
 import { RowTypeResult, LevelData } from "./json_level_reader.js";
 import { get_audio_manager, AudioManager } from "./audio_manager.js";
 import { build_note_indicators, consume_indicator_by_note_id, get_active_indicators } from "./note_indicator.js";
+import { ScoreManager } from "./score_manager.js";
+import { ScoreData } from "./score_types.js";
 
 export interface GameConfig {
     row_count: number;
@@ -217,12 +219,14 @@ export class GameStateManager {
     private particle_system: ParticleSystem;
     private config: GameConfig;
     private audio_manager: AudioManager;
+    private score_manager: ScoreManager;
 
     constructor(config: GameConfig = DEFAULT_GAME_CONFIG) {
         this.config = config;
         this.game_data = create_initial_game_state(config);
         this.particle_system = new ParticleSystem();
         this.audio_manager = get_audio_manager();
+        this.score_manager = new ScoreManager();
     }
 
     get_game_data(): GameData {
@@ -239,6 +243,8 @@ export class GameStateManager {
         this.audio_manager.stop_all_samples();
         // Clear MIDI data and reset playback
         this.audio_manager.clear_midi_data();
+        // Reset score
+        this.score_manager.reset();
     }
 
     /**
@@ -311,6 +317,8 @@ export class GameStateManager {
             console.log(`[GameState] Built ${this.game_data.note_indicators.length} note indicators`);
         }
         this.particle_system.clear();
+        // Reset score when loading a new level
+        this.score_manager.reset();
     }
 
     /**
@@ -349,6 +357,8 @@ export class GameStateManager {
         this.particle_system.clear();
         // Clear MIDI data when loading custom rows
         this.audio_manager.clear_midi_data();
+        // Reset score when loading custom rows
+        this.score_manager.reset();
     }
 
     start(): void {
@@ -844,6 +854,12 @@ export class GameStateManager {
             console.log(`[GameState] Long tile released early, skipping notes for row ${row.row_index}`);
             this.skip_notes_for_active_row();
         }
+
+        // Add score for the completed tile
+        if (row.row_type !== RowType.START) {
+            this.score_manager.add_tile_score(rect, row, performance.now());
+        }
+
         this.check_row_completion(row);
     }
 
@@ -1126,5 +1142,19 @@ export class GameStateManager {
 
     get_active_note_indicators(): NoteIndicatorData[] {
         return get_active_indicators(this.game_data.note_indicators);
+    }
+
+    /**
+     * Gets the current score data for rendering.
+     */
+    get_score_data(): ScoreData {
+        return this.score_manager.get_score_data();
+    }
+
+    /**
+     * Updates score animations. Should be called once per frame.
+     */
+    update_score(current_time: number): void {
+        this.score_manager.update(current_time);
     }
 }
