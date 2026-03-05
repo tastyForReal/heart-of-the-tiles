@@ -23,6 +23,10 @@ const SCORE_COUNTER_CONFIG = {
     SHADOW_OFFSET_Y: 2,
     /** Y position as a percentage of screen height (12.5%) */
     Y_POSITION_PERCENT: 0.125,
+    /** Anchor for horizontal alignment (0.5 = center) */
+    ANCHOR_X: 0.5,
+    /** Anchor for vertical alignment (0.5 = center) */
+    ANCHOR_Y: 0.5,
 };
 
 /**
@@ -33,10 +37,10 @@ const BONUS_LABEL_CONFIG = {
     FONT_SIZE: 72,
     /** Text color for bonus labels (#28A2FC) */
     TEXT_COLOR: [40 / 255, 162 / 255, 252 / 255, 1.0] as [number, number, number, number],
-    /** Approximate height of the text for positioning above tile */
-    TEXT_HEIGHT: 72,
-    /** Gap between tile top edge and label bottom (in pixels) */
-    GAP_ABOVE_TILE: 8,
+    /** Anchor for horizontal alignment (0.5 = center) */
+    ANCHOR_X: 0.5,
+    /** Anchor for vertical alignment (0.5 = center) */
+    ANCHOR_Y: 0.5,
 };
 
 /**
@@ -64,6 +68,7 @@ function calculate_score_y_position(): number {
 
 /**
  * Renders the score counter with drop shadow and optional scale animation.
+ * Uses centered anchor (0.5, 0.5) for both text and shadow.
  *
  * @param font_renderer The BMFont renderer instance
  * @param score_data The current score data
@@ -77,23 +82,44 @@ function render_score_counter(
     const score_text = `${score_data.total_score}`;
     const scale = calculate_font_scale(SCORE_COUNTER_CONFIG.FONT_SIZE) * score_data.animation.current_scale;
 
-    // Calculate text width for centering
-    const text_width = font_renderer.get_text_width(score_text, scale);
-    const x = (SCREEN_CONFIG.WIDTH - text_width) / 2;
+    // Center position for the score text
+    const x = SCREEN_CONFIG.WIDTH / 2;
     const y = calculate_score_y_position();
 
     // Render drop shadow first (behind the main text)
+    // With anchor 0.5, 0.5, the shadow offset is applied directly to the position
     const shadow_x = x + SCORE_COUNTER_CONFIG.SHADOW_OFFSET_X;
     const shadow_y = y + SCORE_COUNTER_CONFIG.SHADOW_OFFSET_Y;
-    font_renderer.render_text(score_text, shadow_x, shadow_y, scale, SCORE_COUNTER_CONFIG.SHADOW_COLOR, 0, render_pass);
+    font_renderer.render_text(
+        score_text,
+        shadow_x,
+        shadow_y,
+        scale,
+        SCORE_COUNTER_CONFIG.SHADOW_COLOR,
+        0,
+        render_pass,
+        SCORE_COUNTER_CONFIG.ANCHOR_X,
+        SCORE_COUNTER_CONFIG.ANCHOR_Y,
+    );
 
     // Render main score text on top
-    font_renderer.render_text(score_text, x, y, scale, SCORE_COUNTER_CONFIG.TEXT_COLOR, 0, render_pass);
+    font_renderer.render_text(
+        score_text,
+        x,
+        y,
+        scale,
+        SCORE_COUNTER_CONFIG.TEXT_COLOR,
+        0,
+        render_pass,
+        SCORE_COUNTER_CONFIG.ANCHOR_X,
+        SCORE_COUNTER_CONFIG.ANCHOR_Y,
+    );
 }
 
 /**
  * Renders a single bonus label with its current animation state.
  * The label moves with the tiles at the same scroll speed.
+ * Uses centered anchor (0.5, 0.5) so the text is centered on the given position.
  *
  * @param font_renderer The BMFont renderer instance
  * @param label The bonus label to render
@@ -117,14 +143,21 @@ function render_bonus_label(
         anim.opacity,
     ];
 
-    // Calculate text width for centering on the lane
-    const text_width = font_renderer.get_text_width(label.text, scale);
-    const x = label.x - text_width / 2;
-
-    // Calculate screen Y position by adding scroll offset to base_y
+    // Position is already the center point (with anchor 0.5, 0.5)
+    const x = label.x;
     const y = label.base_y + scroll_offset;
 
-    font_renderer.render_text(label.text, x, y, scale, color, 0, render_pass);
+    font_renderer.render_text(
+        label.text,
+        x,
+        y,
+        scale,
+        color,
+        0,
+        render_pass,
+        BONUS_LABEL_CONFIG.ANCHOR_X,
+        BONUS_LABEL_CONFIG.ANCHOR_Y,
+    );
 }
 
 /**

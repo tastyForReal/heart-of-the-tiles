@@ -274,6 +274,16 @@ export class BMFontRenderer {
      * Renders text at the specified position with the given parameters.
      * Uses a buffer pool to ensure each text render has its own vertex buffer,
      * preventing race conditions when multiple texts are rendered in the same frame.
+     *
+     * @param text The text string to render
+     * @param x The x position (anchor point)
+     * @param y The y position (anchor point)
+     * @param scale The scale factor for the text
+     * @param color The RGBA color for the text
+     * @param scroll_offset The scroll offset to apply to y position
+     * @param render_pass The WebGPU render pass encoder
+     * @param anchor_x Horizontal anchor: 0 = left, 0.5 = center, 1 = right (default: 0)
+     * @param anchor_y Vertical anchor: 0 = top, 0.5 = center, 1 = bottom (default: 0)
      */
     render_text(
         text: string,
@@ -283,12 +293,14 @@ export class BMFontRenderer {
         color: [number, number, number, number],
         scroll_offset: number,
         render_pass: GPURenderPassEncoder,
+        anchor_x: number = 0,
+        anchor_y: number = 0,
     ): void {
         if (!this.font_data || !this.text_pipeline || !this.bind_group) {
             return;
         }
 
-        const vertices = this.create_text_vertices(text, x, y, scale, color, scroll_offset);
+        const vertices = this.create_text_vertices(text, x, y, scale, color, scroll_offset, anchor_x, anchor_y);
         if (vertices.length === 0) {
             return;
         }
@@ -377,6 +389,15 @@ export class BMFontRenderer {
 
     /**
      * Creates vertex data for rendering text
+     *
+     * @param text The text string to render
+     * @param x The x position (anchor point)
+     * @param y The y position (anchor point)
+     * @param scale The scale factor for the text
+     * @param color The RGBA color for the text
+     * @param scroll_offset The scroll offset to apply to y position
+     * @param anchor_x Horizontal anchor: 0 = left, 0.5 = center, 1 = right
+     * @param anchor_y Vertical anchor: 0 = top, 0.5 = center, 1 = bottom
      */
     private create_text_vertices(
         text: string,
@@ -385,14 +406,26 @@ export class BMFontRenderer {
         scale: number,
         color: [number, number, number, number],
         scroll_offset: number,
+        anchor_x: number = 0,
+        anchor_y: number = 0,
     ): TextVertex[] {
         if (!this.font_data) {
             return [];
         }
 
+        // Calculate text dimensions for anchor offset
+        const text_width = calculate_text_width(text, this.font_data, scale);
+        const text_height = this.font_data.common.lineHeight * scale;
+
+        // Apply anchor offsets
+        // anchor_x = 0: left edge at x, anchor_x = 0.5: center at x, anchor_x = 1: right edge at x
+        // anchor_y = 0: top edge at y, anchor_y = 0.5: center at y, anchor_y = 1: bottom edge at y
+        const offset_x = -text_width * anchor_x;
+        const offset_y = -text_height * anchor_y;
+
         const vertices: TextVertex[] = [];
-        let cursor_x = x;
-        const cursor_y = y + scroll_offset;
+        let cursor_x = x + offset_x;
+        const cursor_y = y + scroll_offset + offset_y;
 
         const { scaleW, scaleH } = this.font_data.common;
 

@@ -93,19 +93,21 @@ export function trigger_score_animation(score_data: ScoreData, current_time: num
 
 /**
  * Bonus label positioning configuration.
- * Text renders with Y at the top, so we need to offset by text height
- * to place the label above the tile.
+ * With anchor 0.5, 0.5, the position represents the center of the text.
  */
 const BONUS_LABEL_POSITIONING = {
     /** Approximate height of the bonus label text (72px font) */
     TEXT_HEIGHT: 72,
-    /** Gap between the tile's top edge and the bottom of the label text */
+    /** Half the text height for centered anchor positioning */
+    HALF_TEXT_HEIGHT: 36,
+    /** Gap between the tile's top edge and the center of the label text */
     GAP_ABOVE_TILE: 8,
 };
 
 /**
  * Creates a bonus label for a completed long tile.
  * Position is at the center of the tile's lane, with the label text above the tile.
+ * With anchor 0.5, 0.5, the position represents the center point of the text.
  * The base_y stores the tile's Y position without scroll offset, so the label
  * can move with the tile at the same scroll speed.
  *
@@ -118,10 +120,10 @@ export function create_bonus_label(tile: TileData, bonus_score: number, current_
     // Calculate center of the tile's lane
     const lane_center_x = tile.x + tile.width / 2;
 
-    // Calculate base Y position: text renders with Y at top, so we need to
-    // position Y above the tile by (text_height + gap) so the text bottom
-    // is just above the tile's top edge
-    const label_base_y = tile.y - BONUS_LABEL_POSITIONING.TEXT_HEIGHT - BONUS_LABEL_POSITIONING.GAP_ABOVE_TILE;
+    // Calculate base Y position: with anchor 0.5, 0.5, the position is the center of the text.
+    // To place the label above the tile, we need the center of the text to be at:
+    // tile_top - half_text_height - gap
+    const label_base_y = tile.y - BONUS_LABEL_POSITIONING.HALF_TEXT_HEIGHT - BONUS_LABEL_POSITIONING.GAP_ABOVE_TILE;
 
     return {
         x: lane_center_x,
