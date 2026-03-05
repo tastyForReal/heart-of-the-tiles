@@ -469,7 +469,7 @@ export class Renderer {
             const black_color: [number, number, number, number] = [0, 0, 0, 1]; // Black text
 
             // Calculate scale to fit 95% of tile width
-            const scale = this.font_renderer.calculate_scale_for_tile(text, start_tile_data.width, 0.95);
+            const scale = this.font_renderer.calculate_scale_to_fit(text, start_tile_data.width, 0.95);
 
             // Calculate text position (centered in tile)
             const text_width = this.font_renderer.get_text_width(text, scale);

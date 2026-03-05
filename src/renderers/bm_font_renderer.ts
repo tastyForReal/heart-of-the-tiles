@@ -467,13 +467,19 @@ export class BMFontRenderer {
     }
 
     /**
-     * Calculates the scale needed to fit text within a percentage of a tile's width
+     * Calculates the scale needed to fit text within a percentage of a given width.
+     * Useful for sizing text to fit within containers like tiles, buttons, etc.
+     *
+     * @param text The text string to measure
+     * @param container_width The width of the container (e.g., tile width)
+     * @param width_percentage The percentage of the container width to use (0.0 to 1.0)
+     * @returns The scale factor to apply to the font
      */
-    calculate_scale_for_tile(text: string, tile_width: number, width_percentage: number): number {
+    calculate_scale_to_fit(text: string, container_width: number, width_percentage: number): number {
         if (!this.font_data) {
             return 1.0;
         }
-        const target_width = tile_width * width_percentage;
+        const target_width = container_width * width_percentage;
         return calculate_scale_for_width(text, this.font_data, target_width);
     }
 
