@@ -1,6 +1,9 @@
 {
+    "$schema": "https://json.schemastore.org/tsconfig.json",
     "compilerOptions": {
         "allowSyntheticDefaultImports": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
         "alwaysStrict": true,
         "declaration": true,
         "declarationMap": true,
@@ -33,6 +36,7 @@
         "strictPropertyInitialization": true,
         "target": "ES2022",
         "types": ["node", "@webgpu/types"],
+        "useDefineForClassFields": true,
         "useUnknownInCatchVariables": true
     },
     "exclude": ["node_modules", "dist"],
