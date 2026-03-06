@@ -12,15 +12,15 @@ import { SCREEN_CONFIG } from './types.js';
  */
 const SCORE_COUNTER_CONFIG = {
     /** Font size in pixels for the score counter */
-    FONT_SIZE: 96,
+    FONT_SIZE: 80,
     /** Text color for the score counter (#F8625A) */
     TEXT_COLOR: [248 / 255, 98 / 255, 90 / 255, 1.0] as [number, number, number, number],
     /** Drop shadow color (black #000000) */
     SHADOW_COLOR: [0, 0, 0, 1.0] as [number, number, number, number],
     /** Drop shadow X offset in pixels */
-    SHADOW_OFFSET_X: 2,
+    SHADOW_OFFSET_X: 1,
     /** Drop shadow Y offset in pixels */
-    SHADOW_OFFSET_Y: 2,
+    SHADOW_OFFSET_Y: 1,
     /** Y position as a percentage of screen height (12.5%) */
     Y_POSITION_PERCENT: 0.125,
     /** Anchor for horizontal alignment (0.5 = center) */
