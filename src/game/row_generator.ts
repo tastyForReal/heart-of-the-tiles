@@ -1,16 +1,16 @@
-import { random_int } from "../utils/math_utils.js";
-import { RowType, RowData, TileData, SCREEN_CONFIG, COLORS } from "./types.js";
+import { random_int } from '../utils/math_utils.js';
+import { RowType, RowData, TileData, SCREEN_CONFIG, COLORS } from './types.js';
 
 export const DEFAULT_ROW_COUNT = 100;
 
 enum GeneratedRowType {
-    SINGLE = "single",
-    DOUBLE = "double",
-    EMPTY = "empty",
+    SINGLE = 'single',
+    DOUBLE = 'double',
+    EMPTY = 'empty',
 }
 
-export function calculate_slot_x(slot_index: number): number {
-    return slot_index * (SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT);
+export function calculate_lane_x(lane_index: number): number {
+    return lane_index * (SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT);
 }
 
 export function calculate_column_width(): number {
@@ -18,7 +18,7 @@ export function calculate_column_width(): number {
 }
 
 export function create_tile(
-    slot_index: number,
+    lane_index: number,
     y_position: number,
     height: number,
     color: string = COLORS.BLACK,
@@ -26,8 +26,8 @@ export function create_tile(
 ): TileData {
     const column_width = calculate_column_width();
     return {
-        slot_index,
-        x: calculate_slot_x(slot_index),
+        lane_index,
+        x: calculate_lane_x(lane_index),
         y: y_position,
         width: column_width,
         height,
@@ -42,12 +42,12 @@ export function create_tile(
     };
 }
 
-export function create_start_row(): { row: RowData; slot_index: number } {
+export function create_start_row(): { row: RowData; lane_index: number } {
     const start_y = SCREEN_CONFIG.HEIGHT - SCREEN_CONFIG.BASE_ROW_HEIGHT * 2;
 
-    const slot_index = random_int(0, 3);
+    const lane_index = random_int(0, 3);
 
-    const tile = create_tile(slot_index, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
+    const tile = create_tile(lane_index, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
 
     return {
         row: {
@@ -60,7 +60,7 @@ export function create_start_row(): { row: RowData; slot_index: number } {
             is_completed: false,
             is_active: true,
         },
-        slot_index,
+        lane_index,
     };
 }
 
@@ -68,18 +68,18 @@ export function create_start_row(): { row: RowData; slot_index: number } {
  * Determines the occupied columns for a double row based on the preceding row type.
  * Ensures the generated pattern maintains reachable paths for the player without awkward cross-screen jumps.
  */
-function determine_double_slots(preceding_row: RowData | null): [number, number] {
+function determine_double_lanes(preceding_row: RowData | null): [number, number] {
     if (preceding_row === null) {
         return random_int(0, 1) === 0 ? [0, 2] : [1, 3];
     }
 
     if (preceding_row.row_type === RowType.SINGLE || preceding_row.row_type === RowType.START) {
-        const single_slot = preceding_row.tiles[0]?.slot_index;
-        if (single_slot === undefined) {
+        const single_lane = preceding_row.tiles[0]?.lane_index;
+        if (single_lane === undefined) {
             return random_int(0, 1) === 0 ? [0, 2] : [1, 3];
         }
 
-        if (single_slot === 0 || single_slot === 2) {
+        if (single_lane === 0 || single_lane === 2) {
             return [1, 3];
         } else {
             return [0, 2];
@@ -87,9 +87,9 @@ function determine_double_slots(preceding_row: RowData | null): [number, number]
     }
 
     if (preceding_row.row_type === RowType.DOUBLE) {
-        const occupied_slots = preceding_row.tiles.map(r => r.slot_index);
+        const occupied_lanes = preceding_row.tiles.map(r => r.lane_index);
 
-        if (occupied_slots.includes(0) && occupied_slots.includes(2)) {
+        if (occupied_lanes.includes(0) && occupied_lanes.includes(2)) {
             return [1, 3];
         } else {
             return [0, 2];
@@ -101,30 +101,30 @@ function determine_double_slots(preceding_row: RowData | null): [number, number]
 
 /**
  * Generates a single block row while ensuring a continuous playable path.
- * If the preceded row is a double, the single slot is chosen from the gaps.
- * Otherwise, the new slot ignores the `last_single_slot` to prevent straight vertical pillars.
+ * If the preceded row is a double, the single lane is chosen from the gaps.
+ * Otherwise, the new lane ignores the `last_single_lane` to prevent straight vertical pillars.
  */
 function generate_single_row(
     row_index: number,
     y_position: number,
     height: number,
     preceding_row: RowData | null,
-    last_single_slot: number,
-): { row: RowData; new_last_single_slot: number } {
-    let slot: number;
+    last_single_lane: number,
+): { row: RowData; new_last_single_lane: number } {
+    let lane: number;
 
     if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
-        const occupied = preceding_row.tiles.map(r => r.slot_index);
-        const empty_slots = [0, 1, 2, 3].filter(s => !occupied.includes(s));
-        const chosen_slot = empty_slots[random_int(0, empty_slots.length - 1)];
-        slot = chosen_slot ?? 0;
+        const occupied = preceding_row.tiles.map(r => r.lane_index);
+        const empty_lanes = [0, 1, 2, 3].filter(s => !occupied.includes(s));
+        const chosen_lane = empty_lanes[random_int(0, empty_lanes.length - 1)];
+        lane = chosen_lane ?? 0;
     } else {
-        const available_slots = [0, 1, 2, 3].filter(s => s !== last_single_slot);
-        const chosen_slot = available_slots[random_int(0, available_slots.length - 1)];
-        slot = chosen_slot ?? 0;
+        const available_lanes = [0, 1, 2, 3].filter(s => s !== last_single_lane);
+        const chosen_lane = available_lanes[random_int(0, available_lanes.length - 1)];
+        lane = chosen_lane ?? 0;
     }
 
-    const tile = create_tile(slot, y_position, height, COLORS.BLACK, 1.0);
+    const tile = create_tile(lane, y_position, height, COLORS.BLACK, 1.0);
 
     return {
         row: {
@@ -137,7 +137,7 @@ function generate_single_row(
             is_completed: false,
             is_active: false,
         },
-        new_last_single_slot: slot,
+        new_last_single_lane: lane,
     };
 }
 
@@ -147,8 +147,8 @@ function generate_double_row(
     height: number,
     preceding_row: RowData | null,
 ): RowData {
-    const slots = determine_double_slots(preceding_row);
-    const tiles = slots.map(slot => create_tile(slot, y_position, height, COLORS.BLACK, 1.0));
+    const lanes = determine_double_lanes(preceding_row);
+    const tiles = lanes.map(lane => create_tile(lane, y_position, height, COLORS.BLACK, 1.0));
 
     return {
         row_index,
@@ -191,7 +191,7 @@ export function generate_all_rows(row_count: number = DEFAULT_ROW_COUNT): RowDat
     const start_result = create_start_row();
     rows.push(start_result.row);
 
-    let last_single_slot = start_result.slot_index;
+    let last_single_lane = start_result.lane_index;
 
     let current_y = start_result.row.y_position;
 
@@ -207,9 +207,9 @@ export function generate_all_rows(row_count: number = DEFAULT_ROW_COUNT): RowDat
         let row: RowData;
 
         if (row_type === GeneratedRowType.SINGLE) {
-            const result = generate_single_row(i, current_y, row_height, preceding_row, last_single_slot);
+            const result = generate_single_row(i, current_y, row_height, preceding_row, last_single_lane);
             row = result.row;
-            last_single_slot = result.new_last_single_slot;
+            last_single_lane = result.new_last_single_lane;
         } else if (row_type === GeneratedRowType.DOUBLE) {
             row = generate_double_row(i, current_y, row_height, preceding_row);
         } else {

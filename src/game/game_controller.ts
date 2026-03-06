@@ -1,10 +1,10 @@
-import { GPUContext } from "../renderers/gpu_context.js";
-import { Renderer } from "../renderers/renderer.js";
-import { GameStateManager, GameConfig, DEFAULT_GAME_CONFIG } from "./game_state.js";
-import { InputHandler } from "./input_handler.js";
-import { GameState, InputType } from "./types.js";
-import { LevelData, RowTypeResult } from "./json_level_reader.js";
-import { ScoreRenderer } from "./score_renderer.js";
+import { GPUContext } from '../renderers/gpu_context.js';
+import { Renderer } from '../renderers/renderer.js';
+import { GameStateManager, GameConfig, DEFAULT_GAME_CONFIG } from './game_state.js';
+import { InputHandler } from './input_handler.js';
+import { GameState, InputType } from './types.js';
+import { LevelData, RowTypeResult } from './json_level_reader.js';
+import { ScoreRenderer } from './score_renderer.js';
 
 /**
  * Orchestrates the main game loop (`requestAnimationFrame`) and bridges WebGPU rendering with pure game logic state.
@@ -34,13 +34,13 @@ export class GameController {
     async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
         const gpu_initialized = await this.gpu_context.initialize(canvas);
         if (!gpu_initialized) {
-            console.error("Failed to initialize WebGPU");
+            console.error('Failed to initialize WebGPU');
             return false;
         }
 
         const renderer_initialized = await this.renderer.initialize();
         if (!renderer_initialized) {
-            console.error("Failed to initialize renderer");
+            console.error('Failed to initialize renderer');
             return false;
         }
 
@@ -55,9 +55,9 @@ export class GameController {
     }
 
     private setup_input_callbacks(): void {
-        this.input_handler.set_slot_input_callback(
-            (slot_index: number, screen_x: number, screen_y: number, is_down: boolean, input_type: InputType) => {
-                this.handle_slot_input(slot_index, screen_x, screen_y, is_down, input_type);
+        this.input_handler.set_lane_input_callback(
+            (lane_index: number, screen_x: number, screen_y: number, is_down: boolean, input_type: InputType) => {
+                this.handle_lane_input(lane_index, screen_x, screen_y, is_down, input_type);
             },
         );
 
@@ -71,8 +71,8 @@ export class GameController {
      * Ignores input if the game is already in a GAME OVER state, or if keyboard input
      * was queued (to avoid double-processing via simulated click events on some platforms).
      */
-    private handle_slot_input(
-        slot_index: number,
+    private handle_lane_input(
+        lane_index: number,
         screen_x: number,
         screen_y: number,
         is_down: boolean,
@@ -89,9 +89,9 @@ export class GameController {
         }
 
         if (input_type === InputType.KEYBOARD) {
-            this.game_state.handle_keyboard_input(slot_index, is_down);
+            this.game_state.handle_keyboard_input(lane_index, is_down);
         } else {
-            this.game_state.handle_slot_input(slot_index, screen_x, screen_y, is_down);
+            this.game_state.handle_lane_input(lane_index, screen_x, screen_y, is_down);
         }
     }
 
@@ -171,7 +171,7 @@ export class GameController {
     private render(): void {
         const visible_rows = this.game_state.get_visible_rows();
         const particles = this.game_state.get_particle_system().get_particles();
-        const game_over_indicator = this.game_state.get_game_over_indicator();
+        const game_over_indicator = this.game_state.get_game_over_tile();
         const scroll_offset = this.game_state.get_game_data().scroll_offset;
         const note_indicators = this.game_state.get_active_note_indicators();
         const start_tile_pressed = this.game_state.is_start_tile_pressed();

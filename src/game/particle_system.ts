@@ -1,5 +1,5 @@
-import { random_float } from "../utils/math_utils.js";
-import { ParticleData, COLORS } from "./types.js";
+import { random_float } from '../utils/math_utils.js';
+import { ParticleData, COLORS } from './types.js';
 
 export function create_particle(x: number, y: number, color: string = COLORS.BLACK): ParticleData {
     const angle = random_float(0, Math.PI * 2);

@@ -9,10 +9,10 @@ export const SCREEN_CONFIG = {
 } as const;
 
 export const COLORS = {
-    BLACK: "#000000",
-    YELLOW: "#FFFF00",
-    RED: "#FF0000",
-    WHITE: "#FFFFFF",
+    BLACK: '#000000',
+    YELLOW: '#FFFF00',
+    RED: '#FF0000',
+    WHITE: '#FFFFFF',
 } as const;
 
 export enum RowType {
@@ -23,7 +23,7 @@ export enum RowType {
 }
 
 export interface TileData {
-    slot_index: number;
+    lane_index: number;
     x: number;
     y: number;
     width: number;
@@ -90,11 +90,11 @@ export interface GameData {
     particles: ParticleData[];
     total_completed_height: number;
     scroll_offset: number;
-    game_over_flash: GameOverFlashState | null;
+    game_over_data: GameOverFlashState | null;
     game_over_animation: GameOverAnimationState | null;
     game_won_time: number | null;
-    last_single_slot: number;
-    last_double_slots: [number, number] | null;
+    last_single_lane: number;
+    last_double_lanes: [number, number] | null;
     active_row_index: number;
     completed_rows_count: number;
     current_tps: number;
@@ -143,7 +143,7 @@ export enum InputType {
 
 export interface InputEvent {
     type: InputType;
-    slot_index: number;
+    lane_index: number;
     screen_x: number;
     screen_y: number;
     timestamp: number;

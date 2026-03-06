@@ -4,8 +4,8 @@
  * and creates bonus labels for long tile completions.
  */
 
-import { RowData, TileData, RowType } from "./types.js";
-import { ScoreData, ScoreAnimationState, BonusLabel } from "./score_types.js";
+import { RowData, TileData, RowType } from './types.js';
+import { ScoreData, ScoreAnimationState, BonusLabel } from './score_types.js';
 
 /**
  * Default animation state for score counter.

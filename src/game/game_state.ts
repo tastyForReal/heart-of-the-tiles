@@ -9,15 +9,15 @@ import {
     NoteIndicatorData,
     MusicMetadata,
     RowTiming,
-} from "./types.js";
-import { generate_all_rows, is_row_visible, DEFAULT_ROW_COUNT, create_tile } from "./row_generator.js";
-import { ParticleSystem } from "./particle_system.js";
-import { point_in_rect } from "../utils/math_utils.js";
-import { RowTypeResult, LevelData } from "./json_level_reader.js";
-import { get_audio_manager, AudioManager } from "./audio_manager.js";
-import { build_note_indicators, consume_indicator_by_note_id, get_active_indicators } from "./note_indicator.js";
-import { ScoreManager } from "./score_manager.js";
-import { ScoreData } from "./score_types.js";
+} from './types.js';
+import { generate_all_rows, is_row_visible, DEFAULT_ROW_COUNT, create_tile } from './row_generator.js';
+import { ParticleSystem } from './particle_system.js';
+import { point_in_rect } from '../utils/math_utils.js';
+import { RowTypeResult, LevelData } from './json_level_reader.js';
+import { get_audio_manager, AudioManager } from './audio_manager.js';
+import { build_note_indicators, consume_indicator_by_note_id, get_active_indicators } from './note_indicator.js';
+import { ScoreManager } from './score_manager.js';
+import { ScoreData } from './score_types.js';
 
 export interface GameConfig {
     row_count: number;
@@ -38,11 +38,11 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
         particles: [],
         total_completed_height: 0,
         scroll_offset: 0,
-        game_over_flash: null,
+        game_over_data: null,
         game_over_animation: null,
         game_won_time: null,
-        last_single_slot: 0,
-        last_double_slots: null,
+        last_single_lane: 0,
+        last_double_lanes: null,
         active_row_index: 0,
         completed_rows_count: 0,
         // TPS defaults
@@ -108,18 +108,18 @@ export function calculate_level_row_timings(rows: RowData[], musics_metadata: Mu
  * Determines the occupied columns for a double row based on the preceding row type.
  * Ensures the generated pattern maintains reachable paths for the player without awkward cross-screen jumps.
  */
-function determine_double_slots(preceding_row: RowData | null): [number, number] {
+function determine_double_lanes(preceding_row: RowData | null): [number, number] {
     if (preceding_row === null) {
         return Math.random() < 0.5 ? [0, 2] : [1, 3];
     }
 
     if (preceding_row.row_type === RowType.SINGLE || preceding_row.row_type === RowType.START) {
-        const single_slot = preceding_row.tiles[0]?.slot_index;
-        if (single_slot === undefined) {
+        const single_lane = preceding_row.tiles[0]?.lane_index;
+        if (single_lane === undefined) {
             return Math.random() < 0.5 ? [0, 2] : [1, 3];
         }
 
-        if (single_slot === 0 || single_slot === 2) {
+        if (single_lane === 0 || single_lane === 2) {
             return [1, 3];
         } else {
             return [0, 2];
@@ -127,9 +127,9 @@ function determine_double_slots(preceding_row: RowData | null): [number, number]
     }
 
     if (preceding_row.row_type === RowType.DOUBLE) {
-        const occupied_slots = preceding_row.tiles.map(r => r.slot_index);
+        const occupied_lanes = preceding_row.tiles.map(r => r.lane_index);
 
-        if (occupied_slots.includes(0) && occupied_slots.includes(2)) {
+        if (occupied_lanes.includes(0) && occupied_lanes.includes(2)) {
             return [1, 3];
         } else {
             return [0, 2];
@@ -147,8 +147,8 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
 
     // Create start row first
     const start_y = SCREEN_CONFIG.HEIGHT - SCREEN_CONFIG.BASE_ROW_HEIGHT * 2;
-    const start_slot = Math.floor(Math.random() * 4);
-    const start_tile = create_tile(start_slot, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
+    const start_lane = Math.floor(Math.random() * 4);
+    const start_tile = create_tile(start_lane, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
 
     rows.push({
         row_index: 0,
@@ -162,7 +162,7 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
     });
 
     let current_y = start_y;
-    let last_single_slot = start_slot;
+    let last_single_lane = start_lane;
 
     for (let i = 0; i < level_rows.length; i++) {
         const row_data = level_rows[i];
@@ -175,27 +175,27 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
         let tiles: TileData[] = [];
 
         if (row_data.type === RowType.SINGLE) {
-            let slot: number;
+            let lane: number;
 
-            // If preceded by a double, choose from the empty slots (gaps)
+            // If preceded by a double, choose from the empty lanes (gaps)
             if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
-                const occupied = preceding_row.tiles.map(r => r.slot_index);
-                const empty_slots = [0, 1, 2, 3].filter(s => !occupied.includes(s));
-                const chosen_slot = empty_slots[Math.floor(Math.random() * empty_slots.length)];
-                slot = chosen_slot ?? 0;
+                const occupied = preceding_row.tiles.map(r => r.lane_index);
+                const empty_lanes = [0, 1, 2, 3].filter(s => !occupied.includes(s));
+                const chosen_lane = empty_lanes[Math.floor(Math.random() * empty_lanes.length)];
+                lane = chosen_lane ?? 0;
             } else {
-                // Otherwise, choose any slot except the last single slot
-                const available_slots = [0, 1, 2, 3].filter(s => s !== last_single_slot);
-                const chosen_slot = available_slots[Math.floor(Math.random() * available_slots.length)];
-                slot = chosen_slot ?? 0;
+                // Otherwise, choose any lane except the last single lane
+                const available_lanes = [0, 1, 2, 3].filter(s => s !== last_single_lane);
+                const chosen_lane = available_lanes[Math.floor(Math.random() * available_lanes.length)];
+                lane = chosen_lane ?? 0;
             }
 
-            tiles = [create_tile(slot, current_y, row_height, COLORS.BLACK, 1.0)];
-            last_single_slot = slot;
+            tiles = [create_tile(lane, current_y, row_height, COLORS.BLACK, 1.0)];
+            last_single_lane = lane;
         } else if (row_data.type === RowType.DOUBLE) {
-            // Use preceding row to determine slots
-            const slots = determine_double_slots(preceding_row ?? null);
-            tiles = slots.map(slot => create_tile(slot, current_y, row_height, COLORS.BLACK, 1.0));
+            // Use preceding row to determine lanes
+            const lanes = determine_double_lanes(preceding_row ?? null);
+            tiles = lanes.map(lane => create_tile(lane, current_y, row_height, COLORS.BLACK, 1.0));
         }
         // EMPTY rows have no tiles
 
@@ -284,11 +284,11 @@ export class GameStateManager {
             particles: [],
             total_completed_height: 0,
             scroll_offset: 0,
-            game_over_flash: null,
+            game_over_data: null,
             game_over_animation: null,
             game_won_time: null,
-            last_single_slot: 0,
-            last_double_slots: null,
+            last_single_lane: 0,
+            last_double_lanes: null,
             active_row_index: 0,
             completed_rows_count: 0,
             // TPS settings from level data
@@ -332,11 +332,11 @@ export class GameStateManager {
             particles: [],
             total_completed_height: 0,
             scroll_offset: 0,
-            game_over_flash: null,
+            game_over_data: null,
             game_over_animation: null,
             game_won_time: null,
-            last_single_slot: 0,
-            last_double_slots: null,
+            last_single_lane: 0,
+            last_double_lanes: null,
             active_row_index: 0,
             completed_rows_count: 0,
             // Default TPS when no metadata
@@ -555,12 +555,12 @@ export class GameStateManager {
                             console.log(`[GameState] Game started via bot (long tile)`);
                         }
                         // Resume stopwatch for long tile holding
-                        this.resume_stopwatch_for_row(active_row);
+                        this.update_midi_playback_for_row(active_row);
                         // Play sound when bot starts holding a long tile
                         this.play_tile_sound();
                     } else if (rect.is_holding) {
                         // Keep stopwatch resumed while holding
-                        this.resume_stopwatch_for_row(active_row);
+                        this.update_midi_playback_for_row(active_row);
                     }
                 }
             }
@@ -640,7 +640,7 @@ export class GameStateManager {
         }
     }
 
-    handle_slot_input(slot_index: number, screen_x: number, screen_y: number, is_down: boolean): boolean {
+    handle_lane_input(lane_index: number, screen_x: number, screen_y: number, is_down: boolean): boolean {
         if (this.is_game_over()) {
             return false;
         }
@@ -669,12 +669,12 @@ export class GameStateManager {
 
         const row_top = active_row.y_position + this.game_data.scroll_offset;
         const row_bottom = row_top + active_row.height;
-        const pressed_rect = active_row.tiles.find(r => r.slot_index === slot_index);
+        const pressed_rect = active_row.tiles.find(r => r.lane_index === lane_index);
 
         if (this.config.is_bot_active) {
             if (is_down) {
                 if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
-                    this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
+                    this.trigger_game_over_misclicked(lane_index, screen_x, screen_y, active_row);
                 }
             }
             return false;
@@ -693,8 +693,8 @@ export class GameStateManager {
 
         if (pressed_rect && !pressed_rect.is_pressed && !pressed_rect.is_holding) {
             const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
-            console.log(`[GameState] handle_slot_input: Tile press detected`);
-            console.log(`  - Slot index: ${slot_index}, Is long tile: ${is_long_tile}`);
+            console.log(`[GameState] handle_lane_input: Tile press detected`);
+            console.log(`  - Lane index: ${lane_index}, Is long tile: ${is_long_tile}`);
             console.log(`  - Row height: ${active_row.height}, Base height: ${SCREEN_CONFIG.BASE_ROW_HEIGHT}`);
 
             if (is_long_tile) {
@@ -714,10 +714,10 @@ export class GameStateManager {
                     if (!this.game_data.has_game_started) {
                         this.game_data.has_game_started = true;
                         this.game_data.current_midi_time = 0;
-                        console.log(`[GameState] Game started via handle_slot_input (long tile in hit zone)`);
+                        console.log(`[GameState] Game started via handle_lane_input (long tile in hit zone)`);
                     }
                     // Resume stopwatch for long tile holding
-                    this.resume_stopwatch_for_row(active_row);
+                    this.update_midi_playback_for_row(active_row);
 
                     // Play sound for long black tiles
                     if (active_row.row_type !== RowType.START && !active_row.is_completed) {
@@ -732,14 +732,14 @@ export class GameStateManager {
                 return true;
             }
         } else if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
-            this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
+            this.trigger_game_over_misclicked(lane_index, screen_x, screen_y, active_row);
             return false;
         }
 
         return false;
     }
 
-    handle_keyboard_input(slot_index: number, is_down: boolean): boolean {
+    handle_keyboard_input(lane_index: number, is_down: boolean): boolean {
         if (this.is_game_over()) {
             return false;
         }
@@ -748,7 +748,7 @@ export class GameStateManager {
 
         if (is_down && this.game_data.state === GameState.PAUSED && start_row && !start_row.is_completed) {
             const start_rect = start_row.tiles[0];
-            if (start_rect && start_rect.slot_index === slot_index) {
+            if (start_rect && start_rect.lane_index === lane_index) {
                 const start_screen_y = start_rect.y + this.game_data.scroll_offset;
                 this.press_tile(start_rect, start_row, start_screen_y);
                 this.game_data.state = GameState.PLAYING;
@@ -765,15 +765,15 @@ export class GameStateManager {
         const row_bottom = active_row.y_position + this.game_data.scroll_offset + active_row.height;
         const timing_zone = SCREEN_CONFIG.HEIGHT / 2;
 
-        const pressed_rect = active_row.tiles.find(r => r.slot_index === slot_index);
+        const pressed_rect = active_row.tiles.find(r => r.lane_index === lane_index);
 
         if (this.config.is_bot_active) {
             if (is_down) {
                 if (!pressed_rect && row_bottom >= timing_zone) {
                     const column_width = SCREEN_CONFIG.WIDTH / 4;
-                    const screen_x = slot_index * column_width + column_width / 2;
+                    const screen_x = lane_index * column_width + column_width / 2;
                     const screen_y = active_row.y_position + this.game_data.scroll_offset + active_row.height / 2;
-                    this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
+                    this.trigger_game_over_misclicked(lane_index, screen_x, screen_y, active_row);
                 }
             }
             return false;
@@ -797,7 +797,7 @@ export class GameStateManager {
         if (pressed_rect && !pressed_rect.is_pressed && !pressed_rect.is_holding) {
             const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
             console.log(`[GameState] handle_keyboard_input: Tile press detected`);
-            console.log(`  - Slot index: ${slot_index}, Is long tile: ${is_long_tile}`);
+            console.log(`  - Lane index: ${lane_index}, Is long tile: ${is_long_tile}`);
             console.log(`  - Row height: ${active_row.height}, Base height: ${SCREEN_CONFIG.BASE_ROW_HEIGHT}`);
             console.log(`  - Row bottom: ${row_bottom.toFixed(1)}, Timing zone: ${timing_zone.toFixed(1)}`);
 
@@ -814,7 +814,7 @@ export class GameStateManager {
                     console.log(`[GameState] Game started via handle_keyboard_input (long tile)`);
                 }
                 // Resume stopwatch for long tile holding
-                this.resume_stopwatch_for_row(active_row);
+                this.update_midi_playback_for_row(active_row);
 
                 // Play sound for long black tiles
                 if (active_row.row_type !== RowType.START && !active_row.is_completed) {
@@ -827,9 +827,9 @@ export class GameStateManager {
             }
         } else if (!pressed_rect) {
             const column_width = SCREEN_CONFIG.WIDTH / 4;
-            const screen_x = slot_index * column_width + column_width / 2;
+            const screen_x = lane_index * column_width + column_width / 2;
             const screen_y = active_row.y_position + this.game_data.scroll_offset + active_row.height / 2;
-            this.trigger_game_over_misclicked(slot_index, screen_x, screen_y, active_row);
+            this.trigger_game_over_misclicked(lane_index, screen_x, screen_y, active_row);
             return false;
         }
 
@@ -874,7 +874,7 @@ export class GameStateManager {
         }
 
         // Resume stopwatch for the current tile press
-        this.resume_stopwatch_for_row(row);
+        this.update_midi_playback_for_row(row);
 
         // Play sound for black tiles
         if (row.row_type !== RowType.START && !row.is_completed) {
@@ -906,14 +906,14 @@ export class GameStateManager {
                 for (let i = old_index + 1; i < next_row.row_index; i++) {
                     const middle_row = this.game_data.rows[i];
                     if (middle_row && middle_row.row_type === RowType.EMPTY) {
-                        this.resume_stopwatch_for_row(middle_row);
+                        this.update_midi_playback_for_row(middle_row);
                     }
                 }
             }
         }
     }
 
-    private resume_stopwatch_for_row(row: RowData): void {
+    private update_midi_playback_for_row(row: RowData): void {
         const level_row_index = row.row_index - 1;
         if (level_row_index < 0) return; // START row
 
@@ -990,7 +990,7 @@ export class GameStateManager {
     }
 
     private trigger_game_over_misclicked(
-        slot_index: number,
+        lane_index: number,
         _screen_x: number,
         _screen_y: number,
         active_row: RowData,
@@ -1002,8 +1002,8 @@ export class GameStateManager {
 
         const column_width = SCREEN_CONFIG.WIDTH / 4;
         const indicator: TileData = {
-            slot_index,
-            x: slot_index * column_width,
+            lane_index,
+            x: lane_index * column_width,
             y: active_row.y_position,
             width: column_width,
             height: active_row.height,
@@ -1017,7 +1017,7 @@ export class GameStateManager {
             is_released_early: false,
         };
 
-        this.game_data.game_over_flash = {
+        this.game_data.game_over_data = {
             tile: indicator,
             start_time: performance.now(),
             flash_count: 0,
@@ -1033,7 +1033,7 @@ export class GameStateManager {
 
         const unpressed_rect = active_row.tiles.find(r => !r.is_pressed);
         if (unpressed_rect) {
-            this.game_data.game_over_flash = {
+            this.game_data.game_over_data = {
                 tile: unpressed_rect,
                 start_time: performance.now(),
                 flash_count: 0,
@@ -1076,7 +1076,7 @@ export class GameStateManager {
     }
 
     update_game_over_flash(current_time: number): void {
-        const flash_state = this.game_data.game_over_flash;
+        const flash_state = this.game_data.game_over_data;
         if (!flash_state || !flash_state.is_flashing) {
             return;
         }
@@ -1133,9 +1133,9 @@ export class GameStateManager {
         return this.game_data.rows.filter(row => is_row_visible(row, this.game_data.scroll_offset));
     }
 
-    get_game_over_indicator(): TileData | null {
-        if (this.game_data.game_over_flash) {
-            return this.game_data.game_over_flash.tile;
+    get_game_over_tile(): TileData | null {
+        if (this.game_data.game_over_data) {
+            return this.game_data.game_over_data.tile;
         }
         return null;
     }

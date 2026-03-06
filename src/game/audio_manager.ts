@@ -1,7 +1,7 @@
-import { MIDI_TO_NOTE, MidiJson } from "./midi_types.js";
+import { MIDI_TO_NOTE, MidiJson } from './midi_types.js';
 
-const GAME_OVER_NOTES: string[] = ["c.mp3", "e.mp3", "g.mp3"];
-const AUDIO_SAMPLES_PATH: string = "assets/sounds/mp3/piano/";
+const GAME_OVER_NOTES: string[] = ['c.mp3', 'e.mp3', 'g.mp3'];
+const AUDIO_SAMPLES_PATH: string = 'assets/sounds/mp3/piano/';
 
 export class AudioManager {
     private audio_context: AudioContext | null = null;
@@ -28,104 +28,104 @@ export class AudioManager {
             console.log(`AudioManager initialized with ${this.sample_names.length} samples`);
             return true;
         } catch (error) {
-            console.error("Failed to initialize AudioManager:", error);
+            console.error('Failed to initialize AudioManager:', error);
             return false;
         }
     }
 
     private get_sample_list(): string[] {
         const samples: string[] = [
-            "#A-1.mp3",
-            "#A-2.mp3",
-            "#A-3.mp3",
-            "#a.mp3",
-            "#a1.mp3",
-            "#a2.mp3",
-            "#a3.mp3",
-            "#a4.mp3",
-            "#C-1.mp3",
-            "#C-2.mp3",
-            "#c.mp3",
-            "#c1.mp3",
-            "#c2.mp3",
-            "#c3.mp3",
-            "#c4.mp3",
-            "#D-1.mp3",
-            "#D-2.mp3",
-            "#d.mp3",
-            "#d1.mp3",
-            "#d2.mp3",
-            "#d3.mp3",
-            "#d4.mp3",
-            "#F-1.mp3",
-            "#F-2.mp3",
-            "#f.mp3",
-            "#f1.mp3",
-            "#f2.mp3",
-            "#f3.mp3",
-            "#f4.mp3",
-            "#G-1.mp3",
-            "#G-2.mp3",
-            "#g.mp3",
-            "#g1.mp3",
-            "#g2.mp3",
-            "#g3.mp3",
-            "#g4.mp3",
-            "A-1.mp3",
-            "A-2.mp3",
-            "A-3.mp3",
-            "a.mp3",
-            "a1.mp3",
-            "a2.mp3",
-            "a3.mp3",
-            "a4.mp3",
-            "B-1.mp3",
-            "B-2.mp3",
-            "B-3.mp3",
-            "b.mp3",
-            "b1.mp3",
-            "b2.mp3",
-            "b3.mp3",
-            "b4.mp3",
-            "C-1.mp3",
-            "C-2.mp3",
-            "c.mp3",
-            "c1.mp3",
-            "c2.mp3",
-            "c3.mp3",
-            "c4.mp3",
-            "c5.mp3",
-            "chuanshao.mp3",
-            "D-1.mp3",
-            "D-2.mp3",
-            "d.mp3",
-            "d1.mp3",
-            "d2.mp3",
-            "d3.mp3",
-            "d4.mp3",
-            "E-1.mp3",
-            "E-2.mp3",
-            "e.mp3",
-            "e1.mp3",
-            "e2.mp3",
-            "e3.mp3",
-            "e4.mp3",
-            "empty.mp3",
-            "F-1.mp3",
-            "F-2.mp3",
-            "f.mp3",
-            "f1.mp3",
-            "f2.mp3",
-            "f3.mp3",
-            "f4.mp3",
-            "G-1.mp3",
-            "G-2.mp3",
-            "g.mp3",
-            "g1.mp3",
-            "g2.mp3",
-            "g3.mp3",
-            "g4.mp3",
-            "mute.mp3",
+            '#A-1.mp3',
+            '#A-2.mp3',
+            '#A-3.mp3',
+            '#a.mp3',
+            '#a1.mp3',
+            '#a2.mp3',
+            '#a3.mp3',
+            '#a4.mp3',
+            '#C-1.mp3',
+            '#C-2.mp3',
+            '#c.mp3',
+            '#c1.mp3',
+            '#c2.mp3',
+            '#c3.mp3',
+            '#c4.mp3',
+            '#D-1.mp3',
+            '#D-2.mp3',
+            '#d.mp3',
+            '#d1.mp3',
+            '#d2.mp3',
+            '#d3.mp3',
+            '#d4.mp3',
+            '#F-1.mp3',
+            '#F-2.mp3',
+            '#f.mp3',
+            '#f1.mp3',
+            '#f2.mp3',
+            '#f3.mp3',
+            '#f4.mp3',
+            '#G-1.mp3',
+            '#G-2.mp3',
+            '#g.mp3',
+            '#g1.mp3',
+            '#g2.mp3',
+            '#g3.mp3',
+            '#g4.mp3',
+            'A-1.mp3',
+            'A-2.mp3',
+            'A-3.mp3',
+            'a.mp3',
+            'a1.mp3',
+            'a2.mp3',
+            'a3.mp3',
+            'a4.mp3',
+            'B-1.mp3',
+            'B-2.mp3',
+            'B-3.mp3',
+            'b.mp3',
+            'b1.mp3',
+            'b2.mp3',
+            'b3.mp3',
+            'b4.mp3',
+            'C-1.mp3',
+            'C-2.mp3',
+            'c.mp3',
+            'c1.mp3',
+            'c2.mp3',
+            'c3.mp3',
+            'c4.mp3',
+            'c5.mp3',
+            'chuanshao.mp3',
+            'D-1.mp3',
+            'D-2.mp3',
+            'd.mp3',
+            'd1.mp3',
+            'd2.mp3',
+            'd3.mp3',
+            'd4.mp3',
+            'E-1.mp3',
+            'E-2.mp3',
+            'e.mp3',
+            'e1.mp3',
+            'e2.mp3',
+            'e3.mp3',
+            'e4.mp3',
+            'empty.mp3',
+            'F-1.mp3',
+            'F-2.mp3',
+            'f.mp3',
+            'f1.mp3',
+            'f2.mp3',
+            'f3.mp3',
+            'f4.mp3',
+            'G-1.mp3',
+            'G-2.mp3',
+            'g.mp3',
+            'g1.mp3',
+            'g2.mp3',
+            'g3.mp3',
+            'g4.mp3',
+            'mute.mp3',
         ];
 
         return samples;
@@ -133,7 +133,7 @@ export class AudioManager {
 
     private async preload_samples(): Promise<void> {
         if (!this.audio_context) {
-            throw new Error("AudioContext not initialized");
+            throw new Error('AudioContext not initialized');
         }
 
         const load_promises: Promise<void>[] = [];
@@ -230,7 +230,7 @@ export class AudioManager {
             return [];
         }
 
-        if (this.audio_context.state === "suspended") {
+        if (this.audio_context.state === 'suspended') {
             this.audio_context.resume();
         }
 
@@ -316,7 +316,7 @@ export class AudioManager {
             return;
         }
 
-        if (this.audio_context.state === "suspended") {
+        if (this.audio_context.state === 'suspended') {
             this.audio_context.resume();
         }
 
@@ -328,7 +328,7 @@ export class AudioManager {
         }
 
         // Convert note name to file name
-        const file_name = note_name + ".mp3";
+        const file_name = note_name + '.mp3';
         console.log(
             `[AudioManager] play_note_by_midi: MIDI ${midi_number} -> note "${note_name}" -> file "${file_name}"`,
         );
@@ -345,7 +345,7 @@ export class AudioManager {
             return;
         }
 
-        if (this.audio_context.state === "suspended") {
+        if (this.audio_context.state === 'suspended') {
             this.audio_context.resume();
         }
 
@@ -389,7 +389,7 @@ export class AudioManager {
             return;
         }
 
-        if (this.audio_context.state === "suspended") {
+        if (this.audio_context.state === 'suspended') {
             this.audio_context.resume();
         }
 
@@ -418,7 +418,7 @@ export class AudioManager {
     }
 
     resume_context(): void {
-        if (this.audio_context && this.audio_context.state === "suspended") {
+        if (this.audio_context && this.audio_context.state === 'suspended') {
             this.audio_context.resume();
         }
     }

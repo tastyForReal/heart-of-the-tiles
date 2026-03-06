@@ -1,10 +1,10 @@
-import { GPUContext } from "./gpu_context.js";
-import { BMFontRenderer } from "./bm_font_renderer.js";
-import { hex_to_rgba } from "../utils/math_utils.js";
-import { RowData, TileData, ParticleData, SCREEN_CONFIG, RowType } from "../game/types.js";
-import { NoteIndicatorData } from "../game/note_indicator.js";
-import { ScoreData } from "../game/score_types.js";
-import { ScoreRenderer } from "../game/score_renderer.js";
+import { GPUContext } from './gpu_context.js';
+import { BMFontRenderer } from './bm_font_renderer.js';
+import { hex_to_rgba } from '../utils/math_utils.js';
+import { RowData, TileData, ParticleData, SCREEN_CONFIG, RowType } from '../game/types.js';
+import { NoteIndicatorData } from '../game/note_indicator.js';
+import { ScoreData } from '../game/score_types.js';
+import { ScoreRenderer } from '../game/score_renderer.js';
 
 interface RectangleVertex {
     position: [number, number];
@@ -84,7 +84,7 @@ export class Renderer {
                 {
                     binding: 0,
                     visibility: GPUShaderStage.VERTEX,
-                    buffer: { type: "uniform" },
+                    buffer: { type: 'uniform' },
                 },
             ],
         });
@@ -122,7 +122,7 @@ export class Renderer {
             layout: pipeline_layout,
             vertex: {
                 module: tile_shader,
-                entryPoint: "vertex_main",
+                entryPoint: 'vertex_main',
                 buffers: [
                     {
                         arrayStride: 24,
@@ -130,12 +130,12 @@ export class Renderer {
                             {
                                 shaderLocation: 0,
                                 offset: 0,
-                                format: "float32x2",
+                                format: 'float32x2',
                             },
                             {
                                 shaderLocation: 1,
                                 offset: 8,
-                                format: "float32x4",
+                                format: 'float32x4',
                             },
                         ],
                     },
@@ -143,39 +143,39 @@ export class Renderer {
             },
             fragment: {
                 module: tile_shader,
-                entryPoint: "fragment_main",
+                entryPoint: 'fragment_main',
                 targets: [
                     {
                         format: format,
                         blend: {
                             color: {
-                                srcFactor: "src-alpha",
-                                dstFactor: "one-minus-src-alpha",
-                                operation: "add",
+                                srcFactor: 'src-alpha',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add',
                             },
                             alpha: {
-                                srcFactor: "one",
-                                dstFactor: "one-minus-src-alpha",
-                                operation: "add",
+                                srcFactor: 'one',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add',
                             },
                         },
                     },
                 ],
             },
             primitive: {
-                topology: "triangle-list",
+                topology: 'triangle-list',
             },
         });
 
         // Initialize the BMFont renderer (texture path is read from .fnt file)
         const font_initialized = await this.font_renderer.initialize(
-            "./assets/images/fonts/SofiaSansExtraCondensed.fnt",
+            './assets/images/fonts/SofiaSansExtraCondensed.fnt',
         );
 
         if (!font_initialized) {
-            console.warn("Failed to initialize BMFont renderer, text will not be displayed");
+            console.warn('Failed to initialize BMFont renderer, text will not be displayed');
         } else {
-            console.log("BMFont renderer initialized successfully");
+            console.log('BMFont renderer initialized successfully');
         }
 
         return true;
@@ -446,8 +446,8 @@ export class Renderer {
                 {
                     view: texture.createView(),
                     clearValue: { r: 1, g: 1, b: 1, a: 1 },
-                    loadOp: "clear",
-                    storeOp: "store",
+                    loadOp: 'clear',
+                    storeOp: 'store',
                 },
             ],
         });
@@ -465,7 +465,7 @@ export class Renderer {
 
         // Render "START" text on yellow tile if it exists and hasn't been pressed
         if (start_tile_data && !start_tile_pressed && this.font_renderer.is_loaded()) {
-            const text = "START";
+            const text = 'START';
             const black_color: [number, number, number, number] = [0, 0, 0, 1]; // Black text
 
             // Calculate scale to fit 95% of tile width

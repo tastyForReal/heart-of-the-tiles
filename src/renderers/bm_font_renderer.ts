@@ -1,6 +1,6 @@
-import { GPUContext } from "./gpu_context.js";
-import { BMFontData, parse_bm_font, calculate_scale_for_width, calculate_text_width } from "./bm_font_parser.js";
-import { SCREEN_CONFIG } from "../game/types.js";
+import { GPUContext } from './gpu_context.js';
+import { BMFontData, parse_bm_font, calculate_scale_for_width, calculate_text_width } from './bm_font_parser.js';
+import { SCREEN_CONFIG } from '../game/types.js';
 
 interface TextVertex {
     position: [number, number];
@@ -57,15 +57,15 @@ export class BMFontRenderer {
             // Get the texture file path from the .fnt file's page entry
             const texture_filename = this.font_data.page_file;
             if (!texture_filename) {
-                console.error("No texture file specified in .fnt file");
+                console.error('No texture file specified in .fnt file');
                 return false;
             }
 
             // Construct the texture URL from the font URL's directory
-            const font_url_parts = font_url.split("/");
+            const font_url_parts = font_url.split('/');
             font_url_parts.pop(); // Remove the .fnt filename
             const texture_url =
-                font_url_parts.length > 0 ? `${font_url_parts.join("/")}/${texture_filename}` : texture_filename;
+                font_url_parts.length > 0 ? `${font_url_parts.join('/')}/${texture_filename}` : texture_filename;
 
             // Load the texture atlas
             const texture_response = await fetch(texture_url);
@@ -79,7 +79,7 @@ export class BMFontRenderer {
             // Create GPU texture
             this.font_texture = device.createTexture({
                 size: { width: texture_bitmap.width, height: texture_bitmap.height },
-                format: "rgba8unorm",
+                format: 'rgba8unorm',
                 usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
             });
 
@@ -91,10 +91,10 @@ export class BMFontRenderer {
 
             // Create sampler
             this.font_sampler = device.createSampler({
-                magFilter: "linear",
-                minFilter: "linear",
-                addressModeU: "clamp-to-edge",
-                addressModeV: "clamp-to-edge",
+                magFilter: 'linear',
+                minFilter: 'linear',
+                addressModeU: 'clamp-to-edge',
+                addressModeV: 'clamp-to-edge',
             });
 
             // Create the render pipeline
@@ -106,7 +106,7 @@ export class BMFontRenderer {
             this.font_loaded = true;
             return true;
         } catch (error) {
-            console.error("Failed to initialize BMFontRenderer:", error);
+            console.error('Failed to initialize BMFontRenderer:', error);
             return false;
         }
     }
@@ -170,17 +170,17 @@ export class BMFontRenderer {
                 {
                     binding: 0,
                     visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-                    buffer: { type: "uniform" },
+                    buffer: { type: 'uniform' },
                 },
                 {
                     binding: 1,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: { sampleType: "float" },
+                    texture: { sampleType: 'float' },
                 },
                 {
                     binding: 2,
                     visibility: GPUShaderStage.FRAGMENT,
-                    sampler: { type: "filtering" },
+                    sampler: { type: 'filtering' },
                 },
             ],
         });
@@ -210,7 +210,7 @@ export class BMFontRenderer {
             layout: pipeline_layout,
             vertex: {
                 module: text_shader,
-                entryPoint: "vertex_main",
+                entryPoint: 'vertex_main',
                 buffers: [
                     {
                         arrayStride: 32, // 2 + 2 + 4 floats = 8 * 4 = 32 bytes
@@ -218,17 +218,17 @@ export class BMFontRenderer {
                             {
                                 shaderLocation: 0,
                                 offset: 0,
-                                format: "float32x2", // position
+                                format: 'float32x2', // position
                             },
                             {
                                 shaderLocation: 1,
                                 offset: 8,
-                                format: "float32x2", // tex_coord
+                                format: 'float32x2', // tex_coord
                             },
                             {
                                 shaderLocation: 2,
                                 offset: 16,
-                                format: "float32x4", // color
+                                format: 'float32x4', // color
                             },
                         ],
                     },
@@ -236,27 +236,27 @@ export class BMFontRenderer {
             },
             fragment: {
                 module: text_shader,
-                entryPoint: "fragment_main",
+                entryPoint: 'fragment_main',
                 targets: [
                     {
                         format: format,
                         blend: {
                             color: {
-                                srcFactor: "src-alpha",
-                                dstFactor: "one-minus-src-alpha",
-                                operation: "add",
+                                srcFactor: 'src-alpha',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add',
                             },
                             alpha: {
-                                srcFactor: "one",
-                                dstFactor: "one-minus-src-alpha",
-                                operation: "add",
+                                srcFactor: 'one',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add',
                             },
                         },
                     },
                 ],
             },
             primitive: {
-                topology: "triangle-list",
+                topology: 'triangle-list',
             },
         });
 

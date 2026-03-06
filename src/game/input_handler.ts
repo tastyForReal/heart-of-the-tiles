@@ -1,7 +1,7 @@
-import { KEY_SLOT_MAP, InputType, SCREEN_CONFIG } from "./types.js";
+import { KEY_SLOT_MAP, InputType, SCREEN_CONFIG } from './types.js';
 
-export type SlotInputCallback = (
-    slot_index: number,
+export type LaneInputCallback = (
+    lane_index: number,
     screen_x: number,
     screen_y: number,
     is_down: boolean,
@@ -11,7 +11,7 @@ export type ResetCallback = () => void;
 
 export class InputHandler {
     private canvas: HTMLCanvasElement | null = null;
-    private on_slot_input: SlotInputCallback | null = null;
+    private on_lane_input: LaneInputCallback | null = null;
     private on_reset: ResetCallback | null = null;
 
     initialize(canvas: HTMLCanvasElement): void {
@@ -20,8 +20,8 @@ export class InputHandler {
         this.setup_keyboard_handlers();
     }
 
-    set_slot_input_callback(callback: SlotInputCallback): void {
-        this.on_slot_input = callback;
+    set_lane_input_callback(callback: LaneInputCallback): void {
+        this.on_lane_input = callback;
     }
 
     set_reset_callback(callback: ResetCallback): void {
@@ -34,7 +34,7 @@ export class InputHandler {
         }
 
         const handle_pointer_event = (event: PointerEvent | MouseEvent | TouchEvent, is_down: boolean) => {
-            if (!this.canvas || !this.on_slot_input) {
+            if (!this.canvas || !this.on_lane_input) {
                 return;
             }
 
@@ -59,25 +59,25 @@ export class InputHandler {
             const screen_y = client_y - rect.top;
 
             const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
-            const slot_index = Math.floor(screen_x / column_width);
+            const lane_index = Math.floor(screen_x / column_width);
 
-            // Limit to valid slots
-            if (slot_index < 0 || slot_index >= SCREEN_CONFIG.COLUMN_COUNT) return;
+            // Limit to valid lanes
+            if (lane_index < 0 || lane_index >= SCREEN_CONFIG.COLUMN_COUNT) return;
 
-            this.on_slot_input(slot_index, screen_x, screen_y, is_down, InputType.MOUSE_CLICK);
+            this.on_lane_input(lane_index, screen_x, screen_y, is_down, InputType.MOUSE_CLICK);
         };
 
-        this.canvas.addEventListener("mousedown", e => handle_pointer_event(e, true));
-        this.canvas.addEventListener("touchstart", e => handle_pointer_event(e, true), { passive: false });
-        window.addEventListener("mouseup", e => handle_pointer_event(e, false));
-        window.addEventListener("touchend", e => handle_pointer_event(e, false), { passive: false });
+        this.canvas.addEventListener('mousedown', e => handle_pointer_event(e, true));
+        this.canvas.addEventListener('touchstart', e => handle_pointer_event(e, true), { passive: false });
+        window.addEventListener('mouseup', e => handle_pointer_event(e, false));
+        window.addEventListener('touchend', e => handle_pointer_event(e, false), { passive: false });
     }
 
     private setup_keyboard_handlers(): void {
-        document.addEventListener("keydown", (event: KeyboardEvent) => {
+        document.addEventListener('keydown', (event: KeyboardEvent) => {
             const key = event.key;
 
-            if (key === "r" || key === "R") {
+            if (key === 'r' || key === 'R') {
                 event.preventDefault();
                 if (this.on_reset) {
                     this.on_reset();
@@ -88,28 +88,28 @@ export class InputHandler {
             if (key in KEY_SLOT_MAP) {
                 event.preventDefault();
                 if (event.repeat) return; // Ignore key repeat
-                const slot_index = KEY_SLOT_MAP[key];
-                if (slot_index !== undefined && this.on_slot_input) {
+                const lane_index = KEY_SLOT_MAP[key];
+                if (lane_index !== undefined && this.on_lane_input) {
                     const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
-                    const screen_x = slot_index * column_width + column_width / 2;
+                    const screen_x = lane_index * column_width + column_width / 2;
                     const screen_y = SCREEN_CONFIG.HEIGHT / 2;
 
-                    this.on_slot_input(slot_index, screen_x, screen_y, true, InputType.KEYBOARD);
+                    this.on_lane_input(lane_index, screen_x, screen_y, true, InputType.KEYBOARD);
                 }
             }
         });
 
-        document.addEventListener("keyup", (event: KeyboardEvent) => {
+        document.addEventListener('keyup', (event: KeyboardEvent) => {
             const key = event.key;
             if (key in KEY_SLOT_MAP) {
                 event.preventDefault();
-                const slot_index = KEY_SLOT_MAP[key];
-                if (slot_index !== undefined && this.on_slot_input) {
+                const lane_index = KEY_SLOT_MAP[key];
+                if (lane_index !== undefined && this.on_lane_input) {
                     const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
-                    const screen_x = slot_index * column_width + column_width / 2;
+                    const screen_x = lane_index * column_width + column_width / 2;
                     const screen_y = SCREEN_CONFIG.HEIGHT / 2;
 
-                    this.on_slot_input(slot_index, screen_x, screen_y, false, InputType.KEYBOARD);
+                    this.on_lane_input(lane_index, screen_x, screen_y, false, InputType.KEYBOARD);
                 }
             }
         });

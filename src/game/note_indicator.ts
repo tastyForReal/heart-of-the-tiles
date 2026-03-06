@@ -1,5 +1,5 @@
-import { MidiJson, MidiNote } from "./midi_types.js";
-import { NoteIndicatorData, RowData, RowType, SCREEN_CONFIG } from "./types.js";
+import { MidiJson, MidiNote } from './midi_types.js';
+import { NoteIndicatorData, RowData, RowType, SCREEN_CONFIG } from './types.js';
 
 export type { NoteIndicatorData };
 

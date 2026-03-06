@@ -6,23 +6,23 @@ export class GPUContext {
 
     async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
         if (!navigator.gpu) {
-            console.error("WebGPU not supported");
+            console.error('WebGPU not supported');
             return false;
         }
 
         try {
             const adapter = await navigator.gpu.requestAdapter();
             if (!adapter) {
-                console.error("Failed to get GPU adapter");
+                console.error('Failed to get GPU adapter');
                 return false;
             }
 
             this.device = await adapter.requestDevice();
             this.canvas = canvas;
-            this.context = canvas.getContext("webgpu");
+            this.context = canvas.getContext('webgpu');
 
             if (!this.context) {
-                console.error("Failed to get WebGPU context");
+                console.error('Failed to get WebGPU context');
                 return false;
             }
 
@@ -30,12 +30,12 @@ export class GPUContext {
             this.context.configure({
                 device: this.device,
                 format: this.format,
-                alphaMode: "premultiplied",
+                alphaMode: 'premultiplied',
             });
 
             return true;
         } catch (error) {
-            console.error("WebGPU initialization error:", error);
+            console.error('WebGPU initialization error:', error);
             return false;
         }
     }
@@ -63,7 +63,7 @@ export class GPUContext {
 
         return this.device.createTexture({
             size: { width, height },
-            format: this.format || "bgra8unorm",
+            format: this.format || 'bgra8unorm',
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
         });
     }

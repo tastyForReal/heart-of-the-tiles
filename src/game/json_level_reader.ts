@@ -7,8 +7,8 @@ import {
     MidiTempo,
     NOTE_TO_MIDI,
     BASE_BEATS_MAP,
-} from "./midi_types.js";
-import { RowType } from "./types.js";
+} from './midi_types.js';
+import { RowType } from './types.js';
 
 // =============================================================================
 // MIDI Conversion Functions
@@ -45,38 +45,38 @@ export function get_length(str: string, base_beats: number): number {
     let delay = 0;
     for (const char of str) {
         switch (char) {
-            case "H":
+            case 'H':
                 delay += 256 * base_beats;
                 break;
-            case "I":
+            case 'I':
                 delay += 128 * base_beats;
                 break;
-            case "J":
+            case 'J':
                 delay += 64 * base_beats;
                 break;
-            case "K":
+            case 'K':
                 delay += 32 * base_beats;
                 break;
-            case "L":
+            case 'L':
                 delay += 16 * base_beats;
                 break;
-            case "M":
+            case 'M':
                 delay += 8 * base_beats;
                 break;
-            case "N":
+            case 'N':
                 delay += 4 * base_beats;
                 break;
-            case "O":
+            case 'O':
                 delay += 2 * base_beats;
                 break;
-            case "P":
+            case 'P':
                 delay += 1 * base_beats;
                 break;
             default:
                 return 0;
         }
         if (delay > 0xffffff) {
-            throw new Error("Length overflow");
+            throw new Error('Length overflow');
         }
     }
     return delay;
@@ -90,38 +90,38 @@ export function get_rest(str: string, base_beats: number): number {
     let delay = 0;
     for (const char of str) {
         switch (char) {
-            case "Q":
+            case 'Q':
                 delay += 256 * base_beats;
                 break;
-            case "R":
+            case 'R':
                 delay += 128 * base_beats;
                 break;
-            case "S":
+            case 'S':
                 delay += 64 * base_beats;
                 break;
-            case "T":
+            case 'T':
                 delay += 32 * base_beats;
                 break;
-            case "U":
+            case 'U':
                 delay += 16 * base_beats;
                 break;
-            case "V":
+            case 'V':
                 delay += 8 * base_beats;
                 break;
-            case "W":
+            case 'W':
                 delay += 4 * base_beats;
                 break;
-            case "X":
+            case 'X':
                 delay += 2 * base_beats;
                 break;
-            case "Y":
+            case 'Y':
                 delay += 1 * base_beats;
                 break;
             default:
                 return 0;
         }
         if (delay > 0xffffff) {
-            throw new Error("Length overflow");
+            throw new Error('Length overflow');
         }
     }
     return delay;
@@ -135,7 +135,7 @@ export class SafeDivider {
 
     divide(a: number, b: number): number {
         if (b === 0) {
-            throw new Error("Division by zero");
+            throw new Error('Division by zero');
         }
         const c = Math.floor(a / b);
         this.remainder += a - c * b;
@@ -164,72 +164,72 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
 
         if (char === undefined) continue;
 
-        if (char === ".") {
+        if (char === '.') {
             if (mode === 2) {
                 mode = 1;
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
-        } else if (char === "~" || char === "$") {
+        } else if (char === '~' || char === '$') {
             if (mode === 2) {
                 mode = 1;
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
             notes.push(2);
-        } else if (char === "@") {
+        } else if (char === '@') {
             if (mode === 2) {
                 mode = 1;
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
             notes.push(3);
-        } else if (char === "%") {
+        } else if (char === '%') {
             if (mode === 2) {
                 mode = 1;
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
             notes.push(4);
-        } else if (char === "!") {
+        } else if (char === '!') {
             if (mode === 2) {
                 mode = 1;
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
             notes.push(5);
-        } else if (char === "^" || char === "&") {
+        } else if (char === '^' || char === '&') {
             if (mode === 2) {
                 mode = 1;
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
             notes.push(6);
-        } else if (char === "(") {
+        } else if (char === '(') {
             if (mode === 0) {
                 mode = 1;
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
-        } else if (char === ")") {
+        } else if (char === ')') {
             if (mode === 2) {
                 mode = 3;
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
-        } else if (char === "[") {
+        } else if (char === '[') {
             if (mode === 3) {
                 mode = 4;
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
-        } else if (char === "]") {
+        } else if (char === ']') {
             if (mode === 6) {
                 mode = 5;
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
-        } else if (char === "," || char === ";") {
+        } else if (char === ',' || char === ';') {
             if (mode === 5) {
                 mode = 0;
             } else if (mode === 0) {
@@ -238,28 +238,28 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
                 throw new Error(`Unexpected ${char}`);
             }
         } else {
-            if (char === " ") {
+            if (char === ' ') {
                 continue;
             }
 
             // Ignore < > and digits outside parsing contexts
-            if ((char === "<" || (char >= "0" && char <= "9")) && mode === 0) {
+            if ((char === '<' || (char >= '0' && char <= '9')) && mode === 0) {
                 continue;
             }
             const look_ahead_char = score[i];
             if (
                 look_ahead_char !== undefined &&
-                (look_ahead_char === ">" ||
-                    look_ahead_char === "{" ||
-                    look_ahead_char === "}" ||
-                    (look_ahead_char >= "0" && look_ahead_char <= "9")) &&
+                (look_ahead_char === '>' ||
+                    look_ahead_char === '{' ||
+                    look_ahead_char === '}' ||
+                    (look_ahead_char >= '0' && look_ahead_char <= '9')) &&
                 mode === 5
             ) {
                 continue;
             }
 
             // Parse a token (note name or length code)
-            let temp = "";
+            let temp = '';
             while (true) {
                 const current_char = score[i];
                 if (current_char === undefined) break;
@@ -268,22 +268,22 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
                 const look_ahead = score[i];
                 if (
                     i === score.length ||
-                    look_ahead === "." ||
-                    look_ahead === "(" ||
-                    look_ahead === ")" ||
-                    look_ahead === "~" ||
-                    look_ahead === "[" ||
-                    look_ahead === "]" ||
-                    look_ahead === "," ||
-                    look_ahead === ";" ||
-                    look_ahead === "<" ||
-                    look_ahead === ">" ||
-                    look_ahead === "@" ||
-                    look_ahead === "%" ||
-                    look_ahead === "!" ||
-                    look_ahead === "$" ||
-                    look_ahead === "^" ||
-                    look_ahead === "&"
+                    look_ahead === '.' ||
+                    look_ahead === '(' ||
+                    look_ahead === ')' ||
+                    look_ahead === '~' ||
+                    look_ahead === '[' ||
+                    look_ahead === ']' ||
+                    look_ahead === ',' ||
+                    look_ahead === ';' ||
+                    look_ahead === '<' ||
+                    look_ahead === '>' ||
+                    look_ahead === '@' ||
+                    look_ahead === '%' ||
+                    look_ahead === '!' ||
+                    look_ahead === '$' ||
+                    look_ahead === '^' ||
+                    look_ahead === '&'
                 ) {
                     i--;
                     break;
@@ -334,7 +334,7 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
     }
 
     if (mode !== 0 && mode !== 5) {
-        throw new Error("Incomplete score string");
+        throw new Error('Incomplete score string');
     }
 
     return {
@@ -359,7 +359,7 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
     // Validate operator combination
     const operator_count = Number(div > 0) + Number(arp1 > 0) + Number(arp2 > 0) + Number(arp3 > 0) + Number(arp4 > 0);
     if (operator_count > 1 || arp4 > 1) {
-        throw new Error("Problem with operators");
+        throw new Error('Problem with operators');
     }
 
     const divisor = div + 1;
@@ -385,7 +385,7 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                         delay = sdiv.divide(length, 10 * (arp1 - 1));
                     }
                     if (delay > length) {
-                        throw new Error("Fatal error with @");
+                        throw new Error('Fatal error with @');
                     }
                     length = length - delay;
                     messages.push({ type: 2, value: delay });
@@ -410,7 +410,7 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                 if (noteVal === 4) {
                     const delay = sdiv.divide(3 * length, 10 * arp2);
                     if (delay > length) {
-                        throw new Error("Fatal error with %");
+                        throw new Error('Fatal error with %');
                     }
                     length = length - delay;
                     messages.push({ type: 2, value: delay });
@@ -435,7 +435,7 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                 if (noteVal === 5) {
                     const delay = sdiv.divide(3 * length, 20 * arp3);
                     if (delay > length) {
-                        throw new Error("Fatal error with !");
+                        throw new Error('Fatal error with !');
                     }
                     length = length - delay;
                     messages.push({ type: 2, value: delay });
@@ -457,7 +457,7 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
             note2 === undefined ||
             note2 < 20
         ) {
-            throw new Error("Problem with ornament");
+            throw new Error('Problem with ornament');
         }
 
         let note_flip = 0;
@@ -551,7 +551,7 @@ export function calculate_track_length_diff(messages1: ParsedMessage[], messages
             }
         }
         if (diff > 0xfffffff || diff < -0xfffffff) {
-            throw new Error("Length overflow");
+            throw new Error('Length overflow');
         }
     }
 
@@ -580,7 +580,7 @@ export function shrink_track(messages: ParsedMessage[], amount: number): void {
     }
 
     if (remaining !== 0) {
-        throw new Error("Unable to shrink track - this should not happen");
+        throw new Error('Unable to shrink track - this should not happen');
     }
 
     // Clean up orphaned notes
@@ -610,7 +610,7 @@ export function shrink_track(messages: ParsedMessage[], amount: number): void {
  */
 export function verify_track_length(tracks: ParsedTrack[]): void {
     if (tracks.length === 0) {
-        throw new Error("No tracks");
+        throw new Error('No tracks');
     }
 
     for (let i = 1; i < tracks.length; i++) {
@@ -650,7 +650,7 @@ export function parse_song(
             const calculated_bpm = music_bpm * base_beats_multiplier;
 
             console.log(
-                `[MidiParser] Parsing part ${p}: BPM input=${music.bpm ?? "undefined (using baseBpm: " + (baseBpm ?? 120) + ")"}, baseBeats=${music.baseBeats}`,
+                `[MidiParser] Parsing part ${p}: BPM input=${music.bpm ?? 'undefined (using baseBpm: ' + (baseBpm ?? 120) + ')'}, baseBeats=${music.baseBeats}`,
             );
             console.log(`  - base_beats_multiplier: ${base_beats_multiplier}`);
             console.log(`  - music_bpm: ${music_bpm}`);
@@ -959,13 +959,13 @@ export function convert_raw_to_midi_json(
     baseBpm?: number,
 ): MidiJson {
     console.log(`[MidiParser] Converting ${musics.length} music parts to MIDI format...`);
-    console.log(`[MidiParser] Base BPM (fallback): ${baseBpm ?? "not provided, will use 120"}`);
+    console.log(`[MidiParser] Base BPM (fallback): ${baseBpm ?? 'not provided, will use 120'}`);
 
     for (let i = 0; i < musics.length; i++) {
         const music = musics[i];
         if (!music) continue;
         console.log(
-            `[MidiParser] Music ${i}: BPM=${music.bpm ?? "undefined"}, baseBeats=${music.baseBeats}, scores=${music.scores.length}`,
+            `[MidiParser] Music ${i}: BPM=${music.bpm ?? 'undefined'}, baseBeats=${music.baseBeats}, scores=${music.scores.length}`,
         );
     }
 
@@ -1091,8 +1091,8 @@ function parse_component(component: string): ParsedComponent {
 
     const group_match = trimmed.match(/^(\d)<(.+)>$/);
     if (group_match) {
-        const type_id = parseInt(group_match[1] ?? "0", 10);
-        const group_content = group_match[2] ?? "";
+        const type_id = parseInt(group_match[1] ?? '0', 10);
+        const group_content = group_match[2] ?? '';
 
         const duration = extract_all_letters(group_content);
         const original_type = type_id === 5 ? RowType.DOUBLE : RowType.SINGLE;
@@ -1110,7 +1110,7 @@ function parse_component(component: string): ParsedComponent {
 
 function split_score(score: string): string[] {
     const components: string[] = [];
-    let current = "";
+    let current = '';
     let i = 0;
 
     while (i < score.length) {
@@ -1121,14 +1121,14 @@ function split_score(score: string): string[] {
             continue;
         }
 
-        if (char === "<") {
+        if (char === '<') {
             if (current.length > 0 && /\d$/.test(current)) {
-                const digit = current.slice(-1) ?? "";
+                const digit = current.slice(-1) ?? '';
                 current = current.slice(0, -1);
 
                 if (current.trim()) {
                     components.push(current.trim());
-                    current = "";
+                    current = '';
                 }
 
                 let depth = 0;
@@ -1136,23 +1136,23 @@ function split_score(score: string): string[] {
                 while (i < score.length) {
                     const c = score[i];
                     if (c === undefined) break;
-                    if (c === "<") depth++;
-                    else if (c === ">") depth--;
+                    if (c === '<') depth++;
+                    else if (c === '>') depth--;
                     group_str += c;
                     i++;
                     if (depth === 0) break;
                 }
                 components.push(group_str);
                 const next_char = score[i];
-                if (next_char === ",") i++;
+                if (next_char === ',') i++;
             } else {
                 current += char;
                 i++;
             }
-        } else if (char === "," || char === ";") {
+        } else if (char === ',' || char === ';') {
             if (current.trim()) {
                 components.push(current.trim());
-                current = "";
+                current = '';
             }
             i++;
         } else {
@@ -1335,50 +1335,50 @@ export interface MusicOutputFile {
  * Validates the structure of music input data
  */
 function validate_music_input(data: unknown): MusicInputFile {
-    if (!data || typeof data !== "object") {
-        throw new Error("Invalid JSON structure: expected an object");
+    if (!data || typeof data !== 'object') {
+        throw new Error('Invalid JSON structure: expected an object');
     }
 
     const input = data as Record<string, unknown>;
 
-    const base_bpm = input["baseBpm"];
-    if (typeof base_bpm !== "number") {
+    const base_bpm = input['baseBpm'];
+    if (typeof base_bpm !== 'number') {
         throw new Error('Invalid JSON structure: "baseBpm" must be a number and is required');
     }
 
-    const musics = input["musics"];
+    const musics = input['musics'];
     if (!musics || !Array.isArray(musics)) {
         throw new Error('Invalid JSON structure: "musics" array is required');
     }
 
     const entry_list: MusicEntry[] = [];
     for (const music of musics) {
-        if (!music || typeof music !== "object") {
-            throw new Error("Invalid music entry: expected an object");
+        if (!music || typeof music !== 'object') {
+            throw new Error('Invalid music entry: expected an object');
         }
         const m = music as Record<string, unknown>;
-        if (typeof m["id"] !== "number") {
+        if (typeof m['id'] !== 'number') {
             throw new Error('Invalid music entry: "id" must be a number');
         }
-        if (typeof m["baseBeats"] !== "number") {
+        if (typeof m['baseBeats'] !== 'number') {
             throw new Error('Invalid music entry: "baseBeats" must be a number');
         }
-        if (!Array.isArray(m["scores"])) {
+        if (!Array.isArray(m['scores'])) {
             throw new Error('Invalid music entry: "scores" must be an array');
         }
 
         entry_list.push({
-            id: m["id"],
-            bpm: typeof m["bpm"] === "number" ? m["bpm"] : undefined,
-            baseBeats: m["baseBeats"] as number,
-            scores: m["scores"] as string[],
+            id: m['id'],
+            bpm: typeof m['bpm'] === 'number' ? m['bpm'] : undefined,
+            baseBeats: m['baseBeats'] as number,
+            scores: m['scores'] as string[],
         });
     }
 
     return {
         baseBpm: base_bpm as number,
         musics: entry_list,
-        audition: input["audition"] as { start: [number, number]; end: [number, number] } | undefined,
+        audition: input['audition'] as { start: [number, number]; end: [number, number] } | undefined,
     };
 }
 
@@ -1440,16 +1440,16 @@ function calculate_tps(music: MusicEntry, base_bpm: number): number {
  */
 export async function select_and_load_music_file(): Promise<LevelData> {
     return new Promise((resolve, reject) => {
-        const input = document.createElement("input");
-        input.type = "file";
-        input.accept = ".json,application/json";
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,application/json';
 
         input.onchange = async (event: Event) => {
             const target = event.target as HTMLInputElement;
             const file = target.files?.[0];
 
             if (!file) {
-                reject(new Error("No file selected"));
+                reject(new Error('No file selected'));
                 return;
             }
 
@@ -1459,7 +1459,7 @@ export async function select_and_load_music_file(): Promise<LevelData> {
                 const level_data = load_level_from_json(json);
                 resolve(level_data);
             } catch (error) {
-                reject(error instanceof Error ? error : new Error("Failed to load file"));
+                reject(error instanceof Error ? error : new Error('Failed to load file'));
             }
         };
 

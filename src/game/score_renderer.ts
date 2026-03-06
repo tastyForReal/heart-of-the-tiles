@@ -3,9 +3,9 @@
  * Uses BMFont for text rendering with WebGPU.
  */
 
-import { BMFontRenderer } from "../renderers/bm_font_renderer.js";
-import { ScoreData, BonusLabel } from "./score_types.js";
-import { SCREEN_CONFIG } from "./types.js";
+import { BMFontRenderer } from '../renderers/bm_font_renderer.js';
+import { ScoreData, BonusLabel } from './score_types.js';
+import { SCREEN_CONFIG } from './types.js';
 
 /**
  * Score counter display configuration.

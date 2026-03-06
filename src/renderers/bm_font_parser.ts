@@ -49,22 +49,22 @@ export interface BMFontData {
  * BMFont files contain character glyph information for bitmap font rendering.
  */
 export function parse_bm_font(fnt_content: string): BMFontData {
-    const lines = fnt_content.split("\n");
+    const lines = fnt_content.split('\n');
 
-    let info: BMFontInfo = { face: "", size: 0, bold: 0, italic: 0 };
+    let info: BMFontInfo = { face: '', size: 0, bold: 0, italic: 0 };
     let common: BMFontCommon = { lineHeight: 0, base: 0, scaleW: 0, scaleH: 0, pages: 0 };
     const chars = new Map<number, BMFontChar>();
-    let page_file = "";
+    let page_file = '';
 
     for (const line of lines) {
         const trimmed = line.trim();
-        if (trimmed.startsWith("info ")) {
+        if (trimmed.startsWith('info ')) {
             info = parse_info_line(trimmed);
-        } else if (trimmed.startsWith("common ")) {
+        } else if (trimmed.startsWith('common ')) {
             common = parse_common_line(trimmed);
-        } else if (trimmed.startsWith("page ")) {
+        } else if (trimmed.startsWith('page ')) {
             page_file = parse_page_line(trimmed);
-        } else if (trimmed.startsWith("char ")) {
+        } else if (trimmed.startsWith('char ')) {
             const char_data = parse_char_line(trimmed);
             chars.set(char_data.id, char_data);
         }
@@ -79,10 +79,10 @@ export function parse_bm_font(fnt_content: string): BMFontData {
  */
 function parse_info_line(line: string): BMFontInfo {
     return {
-        face: extract_string_value(line, "face"),
-        size: extract_number_value(line, "size"),
-        bold: extract_number_value(line, "bold"),
-        italic: extract_number_value(line, "italic"),
+        face: extract_string_value(line, 'face'),
+        size: extract_number_value(line, 'size'),
+        bold: extract_number_value(line, 'bold'),
+        italic: extract_number_value(line, 'italic'),
     };
 }
 
@@ -92,11 +92,11 @@ function parse_info_line(line: string): BMFontInfo {
  */
 function parse_common_line(line: string): BMFontCommon {
     return {
-        lineHeight: extract_number_value(line, "lineHeight"),
-        base: extract_number_value(line, "base"),
-        scaleW: extract_number_value(line, "scaleW"),
-        scaleH: extract_number_value(line, "scaleH"),
-        pages: extract_number_value(line, "pages"),
+        lineHeight: extract_number_value(line, 'lineHeight'),
+        base: extract_number_value(line, 'base'),
+        scaleW: extract_number_value(line, 'scaleW'),
+        scaleH: extract_number_value(line, 'scaleH'),
+        pages: extract_number_value(line, 'pages'),
     };
 }
 
@@ -105,7 +105,7 @@ function parse_common_line(line: string): BMFontCommon {
  * Example: page id=0 file="SofiaSansExtraCondensed_0.png"
  */
 function parse_page_line(line: string): string {
-    return extract_string_value(line, "file");
+    return extract_string_value(line, 'file');
 }
 
 /**
@@ -114,15 +114,15 @@ function parse_page_line(line: string): string {
  */
 function parse_char_line(line: string): BMFontChar {
     return {
-        id: extract_number_value(line, "id"),
-        x: extract_number_value(line, "x"),
-        y: extract_number_value(line, "y"),
-        width: extract_number_value(line, "width"),
-        height: extract_number_value(line, "height"),
-        xoffset: extract_number_value(line, "xoffset"),
-        yoffset: extract_number_value(line, "yoffset"),
-        xadvance: extract_number_value(line, "xadvance"),
-        page: extract_number_value(line, "page"),
+        id: extract_number_value(line, 'id'),
+        x: extract_number_value(line, 'x'),
+        y: extract_number_value(line, 'y'),
+        width: extract_number_value(line, 'width'),
+        height: extract_number_value(line, 'height'),
+        xoffset: extract_number_value(line, 'xoffset'),
+        yoffset: extract_number_value(line, 'yoffset'),
+        xadvance: extract_number_value(line, 'xadvance'),
+        page: extract_number_value(line, 'page'),
     };
 }
 
@@ -132,7 +132,7 @@ function parse_char_line(line: string): BMFontChar {
 function extract_string_value(line: string, key: string): string {
     const pattern = new RegExp(`${key}="([^"]*)"`);
     const match = line.match(pattern);
-    return match?.[1] ?? "";
+    return match?.[1] ?? '';
 }
 
 /**
