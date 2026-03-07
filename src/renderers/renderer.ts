@@ -291,6 +291,17 @@ export class Renderer {
             return;
         }
 
+        // Pre-group active indicators by row_index for efficient lookup during tile rendering
+        const indicators_by_row = new Map<number, NoteIndicatorData[]>();
+        for (const indicator of note_indicators) {
+            let list = indicators_by_row.get(indicator.row_index);
+            if (!list) {
+                list = [];
+                indicators_by_row.set(indicator.row_index, list);
+            }
+            list.push(indicator);
+        }
+
         const all_vertices: RectangleVertex[] = [];
 
         // 1. Solid background
@@ -343,8 +354,14 @@ export class Renderer {
             all_vertices.push(...this.create_grid_line_vertices(i * column_width));
         }
 
-        // Add note indicators to flat vertices
+        // Add note indicators to flat vertices (Red Boxes)
+        // De-duplicate stacked notes visually to improve performance
+        const seen_indicator_hits = new Set<string>();
         for (const indicator of note_indicators) {
+            const hit_key = `${indicator.row_index}_${indicator.time}`;
+            if (seen_indicator_hits.has(hit_key)) continue;
+            seen_indicator_hits.add(hit_key);
+
             const sy = indicator.y + scroll_offset;
             if (sy + indicator.height > 0 && sy < SCREEN_CONFIG.HEIGHT) {
                 all_vertices.push(...this.create_note_indicator_vertices(indicator, scroll_offset));
@@ -587,10 +604,15 @@ export class Renderer {
 
                     // Render dot.png note indicators for holding long tiles
                     if (rect.is_holding) {
-                        const dot_size = 16 * scale;
-                        const dot_x = rect.x + (rect.width - dot_size) / 2;
-                        for (const indicator of note_indicators) {
-                            if (indicator.row_index === row.row_index) {
+                        const row_indicators = indicators_by_row.get(row.row_index);
+                        if (row_indicators) {
+                            const dot_size = 16 * scale;
+                            const dot_x = rect.x + (rect.width - dot_size) / 2;
+                            const seen_dots = new Set<number>();
+                            for (const indicator of row_indicators) {
+                                if (seen_dots.has(indicator.time)) continue;
+                                seen_dots.add(indicator.time);
+
                                 const dot_sy = indicator.y + scroll_offset;
                                 if (dot_sy + dot_size > 0 && dot_sy < SCREEN_CONFIG.HEIGHT) {
                                     this.sprite_renderer.render_sprite(

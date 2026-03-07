@@ -490,17 +490,27 @@ export class GameStateManager {
                         this.game_data.skipped_midi_notes,
                     );
                     const current_time = performance.now();
+                    const note_id_to_indicator = new Map<number, NoteIndicatorData>();
+                    for (const ind of this.game_data.note_indicators) {
+                        note_id_to_indicator.set(ind.note_id, ind);
+                    }
+
+                    const processed_hits = new Set<string>();
                     for (const note_id of played_note_ids) {
-                        const indicator = this.game_data.note_indicators.find(ind => ind.note_id === note_id);
+                        const indicator = note_id_to_indicator.get(note_id);
                         if (indicator) {
                             indicator.is_consumed = true;
-                            // Update last_note_played_at for all tiles in this row that are being held
-                            const target_row = this.game_data.rows[indicator.row_index];
-                            if (target_row) {
-                                for (const tile of target_row.tiles) {
-                                    if (tile.is_holding) {
-                                        tile.last_note_played_at = current_time;
-                                        tile.active_circle_animations.push(current_time);
+                            // Only spawn one set of animations per (row, time) hit to improve performance
+                            const hit_key = `${indicator.row_index}_${indicator.time}`;
+                            if (!processed_hits.has(hit_key)) {
+                                processed_hits.add(hit_key);
+                                const target_row = this.game_data.rows[indicator.row_index];
+                                if (target_row) {
+                                    for (const tile of target_row.tiles) {
+                                        if (tile.is_holding) {
+                                            tile.last_note_played_at = current_time;
+                                            tile.active_circle_animations.push(current_time);
+                                        }
                                     }
                                 }
                             }
