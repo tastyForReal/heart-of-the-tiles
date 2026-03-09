@@ -40,12 +40,12 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
 
         const title = document.createElement('div');
         title.className = 'customize_dialog_title';
-        title.textContent = 'Choose Your Rhythm';
+        title.textContent = 'Choose Gameplay Mode';
         header.appendChild(title);
 
         const subtitle = document.createElement('div');
         subtitle.className = 'customize_dialog_subtitle';
-        subtitle.textContent = 'Select how you want to experience the beat.';
+        subtitle.textContent = 'Select how you want to play this level.';
         dialog.appendChild(header);
         dialog.appendChild(subtitle);
 
