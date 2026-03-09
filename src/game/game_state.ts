@@ -20,17 +20,20 @@ import { get_audio_manager, AudioManager } from './audio_manager.js';
 import { build_note_indicators, get_active_indicators } from './note_indicator.js';
 import { ScoreManager } from './score_manager.js';
 import { ScoreData } from './score_types.js';
+import { initialize_logger, log_message } from './logger.js';
 
 export interface GameConfig {
     row_count: number;
     is_bot_active: boolean;
     is_red_note_indicator_enabled: boolean;
+    is_logging_enabled: boolean;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
     row_count: DEFAULT_ROW_COUNT,
     is_bot_active: false,
     is_red_note_indicator_enabled: false,
+    is_logging_enabled: false,
 };
 
 export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONFIG): GameData {
@@ -214,6 +217,7 @@ export class GameStateManager {
 
     constructor(config: GameConfig = DEFAULT_GAME_CONFIG) {
         this.config = config;
+        initialize_logger(config.is_logging_enabled);
         this.game_data = create_initial_game_state(config);
         this.particle_system = new ParticleSystem();
         this.audio_manager = get_audio_manager();
@@ -251,15 +255,15 @@ export class GameStateManager {
                 : SCREEN_CONFIG.DEFAULT_TPS;
 
         const is_midi_loaded = level_data.midi_json !== null;
-        console.log(`[GameState] Loading level:`);
-        console.log(`  - Total rows: ${rows.length}`);
-        console.log(`  - Music sections: ${level_data.musics.length}`);
-        console.log(`  - Base BPM: ${level_data.base_bpm}`);
-        console.log(`  - Initial TPS: ${initial_tps.toFixed(2)}`);
-        console.log(`  - MIDI loaded: ${is_midi_loaded}`);
+        log_message(`[GameState] Loading level:`);
+        log_message(`  - Total rows: ${rows.length}`);
+        log_message(`  - Music sections: ${level_data.musics.length}`);
+        log_message(`  - Base BPM: ${level_data.base_bpm}`);
+        log_message(`  - Initial TPS: ${initial_tps.toFixed(2)}`);
+        log_message(`  - MIDI loaded: ${is_midi_loaded}`);
 
         if (level_data.midi_json) {
-            console.log(`  - MIDI tracks: ${level_data.midi_json.tracks.length}`);
+            log_message(`  - MIDI tracks: ${level_data.midi_json.tracks.length}`);
             this.audio_manager.load_midi_data(level_data.midi_json);
         } else {
             this.audio_manager.clear_midi_data();
@@ -348,7 +352,7 @@ export class GameStateManager {
                 this.game_data.rows,
                 level_data.musics,
             );
-            console.log(`[GameState] Built ${this.game_data.note_indicators.length} note indicators`);
+            log_message(`[GameState] Built ${this.game_data.note_indicators.length} note indicators`);
         }
         this.particle_system.clear();
 
@@ -466,12 +470,12 @@ export class GameStateManager {
 
                     if (this.game_data.game_mode !== GameMode.ENDLESS_CHALLENGE) {
                         this.game_data.current_tps = music.tps;
-                        console.log(
+                        log_message(
                             `[GameState] Transitioned to section ${i}, TPS updating to ${music.tps.toFixed(3)}`,
                         );
                     }
 
-                    console.log(
+                    log_message(
                         `[GameState] Music transition: TPS ${previous_tps.toFixed(2)} -> ${this.game_data.current_tps.toFixed(2)}, music index ${i}`,
                     );
                     return true;
@@ -518,7 +522,7 @@ export class GameStateManager {
             }
 
             if (Math.floor(this.game_data.current_midi_time * 2) !== Math.floor(previous_stopwatch * 2)) {
-                console.log(
+                log_message(
                     `[GameState] Stopwatch: ${this.game_data.current_midi_time.toFixed(3)}s, Target: ${this.game_data.target_time_for_next_note.toFixed(3)}s, Resumed: ${this.game_data.midi_playing}`,
                 );
             }
@@ -557,7 +561,7 @@ export class GameStateManager {
             const expected_total_rows = (this.game_data.loop_count + 2) * rows_per_loop + 1;
 
             if (this.game_data.rows.length < expected_total_rows) {
-                console.log(
+                log_message(
                     `[GameState] Reached last section, regenerating level rows for loop ${this.game_data.loop_count + 1}`,
                 );
                 this.append_level_loop();
@@ -701,7 +705,7 @@ export class GameStateManager {
         }
 
         this.game_data.loop_count++;
-        console.log(`[GameState] Loop ${this.game_data.loop_count} appended: total rows now ${current_rows.length}`);
+        log_message(`[GameState] Loop ${this.game_data.loop_count} appended: total rows now ${current_rows.length}`);
     }
 
     private determine_double_lanes_from_row(preceding_row: RowData | null): [number, number] {
@@ -754,7 +758,7 @@ export class GameStateManager {
                         if (!this.game_data.has_game_started) {
                             this.game_data.has_game_started = true;
                             this.game_data.current_midi_time = 0;
-                            console.log(`[GameState] Game started via bot (long tile)`);
+                            log_message(`[GameState] Game started via bot (long tile)`);
                         }
 
                         this.update_midi_playback_for_row(active_row);
@@ -902,16 +906,16 @@ export class GameStateManager {
 
         if (pressed_rect && !pressed_rect.is_pressed && !pressed_rect.is_holding) {
             const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
-            console.log(`[GameState] handle_lane_input: Tile press detected`);
-            console.log(`  - Lane index: ${lane_index}, Is long tile: ${is_long_tile}`);
-            console.log(`  - Row height: ${active_row.height}, Base height: ${SCREEN_CONFIG.BASE_ROW_HEIGHT}`);
+            log_message(`[GameState] handle_lane_input: Tile press detected`);
+            log_message(`  - Lane index: ${lane_index}, Is long tile: ${is_long_tile}`);
+            log_message(`  - Row height: ${active_row.height}, Base height: ${SCREEN_CONFIG.BASE_ROW_HEIGHT}`);
 
             if (is_long_tile) {
                 const hit_zone_top = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
-                console.log(
+                log_message(
                     `  - Screen Y: ${screen_y.toFixed(1)}, Hit zone: [${hit_zone_top.toFixed(1)}, ${row_bottom.toFixed(1)}]`,
                 );
-                console.log(`  - In hit zone: ${screen_y >= hit_zone_top && screen_y <= row_bottom}`);
+                log_message(`  - In hit zone: ${screen_y >= hit_zone_top && screen_y <= row_bottom}`);
 
                 if (screen_y >= hit_zone_top && screen_y <= row_bottom) {
                     pressed_rect.is_holding = true;
@@ -925,7 +929,7 @@ export class GameStateManager {
                     if (!this.game_data.has_game_started) {
                         this.game_data.has_game_started = true;
                         this.game_data.current_midi_time = 0;
-                        console.log(`[GameState] Game started via handle_lane_input (long tile in hit zone)`);
+                        log_message(`[GameState] Game started via handle_lane_input (long tile in hit zone)`);
                     }
 
                     this.update_midi_playback_for_row(active_row);
@@ -934,7 +938,7 @@ export class GameStateManager {
                         this.play_tile_sound();
                     }
                 } else {
-                    console.log(`[GameState] Long tile press OUTSIDE hit zone - game NOT started`);
+                    log_message(`[GameState] Long tile press OUTSIDE hit zone - game NOT started`);
                 }
                 return true;
             } else {
@@ -1006,10 +1010,10 @@ export class GameStateManager {
 
         if (pressed_rect && !pressed_rect.is_pressed && !pressed_rect.is_holding) {
             const is_long_tile = active_row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT;
-            console.log(`[GameState] handle_keyboard_input: Tile press detected`);
-            console.log(`  - Lane index: ${lane_index}, Is long tile: ${is_long_tile}`);
-            console.log(`  - Row height: ${active_row.height}, Base height: ${SCREEN_CONFIG.BASE_ROW_HEIGHT}`);
-            console.log(`  - Row bottom: ${row_bottom.toFixed(1)}, Timing zone: ${timing_zone.toFixed(1)}`);
+            log_message(`[GameState] handle_keyboard_input: Tile press detected`);
+            log_message(`  - Lane index: ${lane_index}, Is long tile: ${is_long_tile}`);
+            log_message(`  - Row height: ${active_row.height}, Base height: ${SCREEN_CONFIG.BASE_ROW_HEIGHT}`);
+            log_message(`  - Row bottom: ${row_bottom.toFixed(1)}, Timing zone: ${timing_zone.toFixed(1)}`);
 
             if (is_long_tile) {
                 pressed_rect.is_holding = true;
@@ -1023,7 +1027,7 @@ export class GameStateManager {
                 if (!this.game_data.has_game_started) {
                     this.game_data.has_game_started = true;
                     this.game_data.current_midi_time = 0;
-                    console.log(`[GameState] Game started via handle_keyboard_input (long tile)`);
+                    log_message(`[GameState] Game started via handle_keyboard_input (long tile)`);
                 }
 
                 this.update_midi_playback_for_row(active_row);
@@ -1054,14 +1058,14 @@ export class GameStateManager {
         if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
             this.game_data.current_midi_time = 0;
-            console.log(`[GameState] Game started via complete_tile (fallback for long tile)`);
+            log_message(`[GameState] Game started via complete_tile (fallback for long tile)`);
         }
 
         if (!early_release) {
             rect.opacity = 1.0;
             this.particle_system.add_debris(rect.x, screen_y, rect.width, rect.height, 20);
         } else {
-            console.log(`[GameState] Long tile released early, skipping notes for row ${row.row_index}`);
+            log_message(`[GameState] Long tile released early, skipping notes for row ${row.row_index}`);
             this.skip_notes_for_active_row();
         }
 
@@ -1078,7 +1082,7 @@ export class GameStateManager {
         if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
             this.game_data.current_midi_time = 0;
-            console.log(`[GameState] Game started via press_tile (normal tile)`);
+            log_message(`[GameState] Game started via press_tile (normal tile)`);
         }
 
         this.update_midi_playback_for_row(row);
@@ -1134,7 +1138,7 @@ export class GameStateManager {
             is_first_interaction_of_row &&
             this.game_data.current_midi_time < timing.start_time
         ) {
-            console.log(
+            log_message(
                 `[GameState] Jumping stopwatch to next timing point: ${this.game_data.current_midi_time.toFixed(3)}s -> ${timing.start_time.toFixed(3)}s`,
             );
             this.game_data.current_midi_time = timing.start_time;
