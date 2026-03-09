@@ -1,19 +1,21 @@
-import { random_float } from '../utils/math_utils.js';
 import { ParticleData, COLORS } from './types.js';
 import { Color } from '../graphics/color.js';
 
+const GRAVITY = 200;
+const TWO_PI = Math.PI * 2;
+
 export function create_particle(x: number, y: number, color: Color = COLORS.BLACK): ParticleData {
-    const angle = random_float(0, Math.PI * 2);
-    const speed = random_float(50, 200);
+    const angle = Math.random() * TWO_PI;
+    const speed = 50 + Math.random() * 150;
 
     return {
         x,
         y,
         velocity_x: Math.cos(angle) * speed,
         velocity_y: Math.sin(angle) * speed,
-        size: random_float(2, 8),
+        size: 2 + Math.random() * 6,
         opacity: 1.0,
-        decay_rate: random_float(0.5, 2.0),
+        decay_rate: 0.5 + Math.random() * 1.5,
         color,
     };
 }
@@ -25,13 +27,10 @@ export function create_debris_particles(
     rect_height: number,
     count: number = 20,
 ): ParticleData[] {
-    const particles: ParticleData[] = [];
+    const particles: ParticleData[] = new Array(count);
 
     for (let i = 0; i < count; i++) {
-        const particle_x = rect_x + random_float(0, rect_width);
-        const particle_y = rect_y + random_float(0, rect_height);
-
-        particles.push(create_particle(particle_x, particle_y));
+        particles[i] = create_particle(rect_x + Math.random() * rect_width, rect_y + Math.random() * rect_height);
     }
 
     return particles;
@@ -40,20 +39,24 @@ export function create_debris_particles(
 export function update_particle(particle: ParticleData, delta_time: number): boolean {
     particle.x += particle.velocity_x * delta_time;
     particle.y += particle.velocity_y * delta_time;
-
-    particle.velocity_y += 200 * delta_time;
-
+    particle.velocity_y += GRAVITY * delta_time;
     particle.opacity -= particle.decay_rate * delta_time;
 
     return particle.opacity > 0;
 }
 
 export function update_particles(particles: ParticleData[], delta_time: number): ParticleData[] {
-    return particles.filter(p => update_particle(p, delta_time));
-}
+    let write_index = 0;
 
-export function clear_particles(_particles: ParticleData[]): ParticleData[] {
-    return [];
+    for (let read_index = 0; read_index < particles.length; read_index++) {
+        const particle = particles[read_index];
+        if (particle && update_particle(particle, delta_time)) {
+            particles[write_index++] = particle;
+        }
+    }
+
+    particles.length = write_index;
+    return particles;
 }
 
 export class ParticleSystem {
@@ -65,7 +68,7 @@ export class ParticleSystem {
     }
 
     update(delta_time: number): void {
-        this.particles = update_particles(this.particles, delta_time);
+        update_particles(this.particles, delta_time);
     }
 
     get_particles(): ParticleData[] {
@@ -73,7 +76,7 @@ export class ParticleSystem {
     }
 
     clear(): void {
-        this.particles = [];
+        this.particles.length = 0;
     }
 
     get_count(): number {

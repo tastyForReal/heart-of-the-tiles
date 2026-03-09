@@ -1,7 +1,10 @@
-import { Vector2 } from '../graphics/vector2.js';
+import { Color } from '../graphics/color.js';
 import { Point } from '../graphics/point.js';
 import { Rectangle } from '../graphics/rectangle.js';
-import { Color } from '../graphics/color.js';
+import { Vector2 } from '../graphics/vector2.js';
+
+const DEG_TO_RAD = Math.PI / 180;
+const RAD_TO_DEG = 180 / Math.PI;
 
 export function random_int(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -23,17 +26,7 @@ export function lerp_vector2(start: Vector2, end: Vector2, t: number): Vector2 {
     return Vector2.lerp(start, end, t);
 }
 
-export function hex_to_rgba(hex: string): [number, number, number, number] {
-    const color = Color.from_hex(hex);
-    return [color.r / 255, color.g / 255, color.b / 255, color.a / 255];
-}
-
-export function hex_to_rgba_with_alpha(hex: string, alpha: number): [number, number, number, number] {
-    const [r, g, b, _] = hex_to_rgba(hex);
-    return [r, g, b, alpha];
-}
-
-export function color_to_rgba(color: Color): [number, number, number, number] {
+export function color_to_normalized(color: Color): [number, number, number, number] {
     return [color.r / 255, color.g / 255, color.b / 255, color.a / 255];
 }
 
@@ -77,9 +70,7 @@ export function ease_in_out_cubic(t: number): number {
 }
 
 export function distance(x1: number, y1: number, x2: number, y2: number): number {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    return Math.sqrt(dx * dx + dy * dy);
+    return Math.sqrt(distance_squared(x1, y1, x2, y2));
 }
 
 export function distance_squared(x1: number, y1: number, x2: number, y2: number): number {
@@ -89,15 +80,13 @@ export function distance_squared(x1: number, y1: number, x2: number, y2: number)
 }
 
 export function normalize_angle(angle: number): number {
-    while (angle < 0) angle += 360;
-    while (angle >= 360) angle -= 360;
-    return angle;
+    return ((angle % 360) + 360) % 360;
 }
 
 export function deg_to_rad(degrees: number): number {
-    return (degrees * Math.PI) / 180;
+    return degrees * DEG_TO_RAD;
 }
 
 export function rad_to_deg(radians: number): number {
-    return (radians * 180) / Math.PI;
+    return radians * RAD_TO_DEG;
 }
