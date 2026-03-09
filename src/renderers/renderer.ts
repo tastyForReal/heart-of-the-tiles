@@ -283,6 +283,7 @@ export class Renderer {
         start_tile_pressed: boolean = false,
         score_data: ScoreData | null = null,
         score_renderer: ScoreRenderer | null = null,
+        show_red_note_indicators: boolean = false,
     ): void {
         const device = this.gpu_context.get_device();
         const context = this.gpu_context.get_context();
@@ -356,15 +357,17 @@ export class Renderer {
 
         // Add note indicators to flat vertices (Red Boxes)
         // De-duplicate stacked notes visually to improve performance
-        const seen_indicator_hits = new Set<string>();
-        for (const indicator of note_indicators) {
-            const hit_key = `${indicator.row_index}_${indicator.time}`;
-            if (seen_indicator_hits.has(hit_key)) continue;
-            seen_indicator_hits.add(hit_key);
+        if (show_red_note_indicators) {
+            const seen_indicator_hits = new Set<string>();
+            for (const indicator of note_indicators) {
+                const hit_key = `${indicator.row_index}_${indicator.time}`;
+                if (seen_indicator_hits.has(hit_key)) continue;
+                seen_indicator_hits.add(hit_key);
 
-            const sy = indicator.y + scroll_offset;
-            if (sy + indicator.height > 0 && sy < SCREEN_CONFIG.HEIGHT) {
-                all_vertices.push(...this.create_note_indicator_vertices(indicator, scroll_offset));
+                const sy = indicator.y + scroll_offset;
+                if (sy + indicator.height > 0 && sy < SCREEN_CONFIG.HEIGHT) {
+                    all_vertices.push(...this.create_note_indicator_vertices(indicator, scroll_offset));
+                }
             }
         }
 

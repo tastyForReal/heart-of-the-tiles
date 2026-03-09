@@ -368,14 +368,12 @@ export class GameStateManager {
             }
             this.game_data.loop_0_midi_notes = all_loop_notes;
 
-            if (this.config.is_red_note_indicator_enabled) {
-                this.game_data.note_indicators = build_note_indicators(
-                    level_data.midi_json,
-                    this.game_data.rows,
-                    level_data.musics,
-                );
-                console.log(`[GameState] Built ${this.game_data.note_indicators.length} note indicators`);
-            }
+            this.game_data.note_indicators = build_note_indicators(
+                level_data.midi_json,
+                this.game_data.rows,
+                level_data.musics,
+            );
+            console.log(`[GameState] Built ${this.game_data.note_indicators.length} note indicators`);
         }
         this.particle_system.clear();
         // Reset score when loading a new level
@@ -718,44 +716,41 @@ export class GameStateManager {
         // Generate mirrored NoteIndicatorData & MIDI notes for the appended loop
         const AUDIO_MANAGER = get_audio_manager();
 
-        if (this.config.is_red_note_indicator_enabled) {
-            const loop_0_indicators = this.game_data.note_indicators.filter(ind => ind.row_index <= original_total);
+        const loop_0_indicators = this.game_data.note_indicators.filter(ind => ind.row_index <= original_total);
 
-            for (const ind of loop_0_indicators) {
-                if (ind.time_fraction === undefined || ind.track_idx === undefined || ind.midi === undefined) continue;
+        for (const ind of loop_0_indicators) {
+            if (ind.time_fraction === undefined || ind.track_idx === undefined || ind.midi === undefined) continue;
 
-                const new_row_index = ind.row_index + new_loop_offset;
-                const new_row_timing = new_timings[new_row_index - 1]; // 0-based
-                if (!new_row_timing) continue;
+            const new_row_index = ind.row_index + new_loop_offset;
+            const new_row_timing = new_timings[new_row_index - 1]; // 0-based
+            if (!new_row_timing) continue;
 
-                const new_time =
-                    new_row_timing.start_time +
-                    ind.time_fraction * (new_row_timing.end_time - new_row_timing.start_time);
+            const new_time =
+                new_row_timing.start_time + ind.time_fraction * (new_row_timing.end_time - new_row_timing.start_time);
 
-                const new_row = current_rows.find(r => r.row_index === new_row_index);
-                if (!new_row) continue;
+            const new_row = current_rows.find(r => r.row_index === new_row_index);
+            if (!new_row) continue;
 
-                const row_bottom = new_row.y_position + new_row.height;
-                const base_height_edge = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
-                const indicator_y = base_height_edge - ind.time_fraction * new_row.height - 8; // INDICATOR_Y_OFFSET = -8
+            const row_bottom = new_row.y_position + new_row.height;
+            const base_height_edge = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
+            const indicator_y = base_height_edge - ind.time_fraction * new_row.height - 8; // INDICATOR_Y_OFFSET = -8
 
-                // Recompute note_id with new time to prevent collisions, while keeping track and midi
-                const new_note_id = Math.round(new_time * 1000) * 1000000 + ind.track_idx * 1000 + ind.midi;
+            // Recompute note_id with new time to prevent collisions, while keeping track and midi
+            const new_note_id = Math.round(new_time * 1000) * 1000000 + ind.track_idx * 1000 + ind.midi;
 
-                this.game_data.note_indicators.push({
-                    note_id: new_note_id,
-                    row_index: new_row_index,
-                    x: ind.x,
-                    y: indicator_y,
-                    width: ind.width,
-                    height: ind.height,
-                    time: new_time,
-                    time_fraction: ind.time_fraction,
-                    track_idx: ind.track_idx,
-                    midi: ind.midi,
-                    is_consumed: false,
-                });
-            }
+            this.game_data.note_indicators.push({
+                note_id: new_note_id,
+                row_index: new_row_index,
+                x: ind.x,
+                y: indicator_y,
+                width: ind.width,
+                height: ind.height,
+                time: new_time,
+                time_fraction: ind.time_fraction,
+                track_idx: ind.track_idx,
+                midi: ind.midi,
+                is_consumed: false,
+            });
         }
 
         // Generate dynamically scheduled MIDI notes matching the row timing scaling
@@ -1450,6 +1445,10 @@ export class GameStateManager {
         return visible_rows;
     }
 
+    get_config(): GameConfig {
+        return this.config;
+    }
+
     get_game_over_tile(): TileData | null {
         if (this.game_data.game_over_data) {
             return this.game_data.game_over_data.tile;
@@ -1458,9 +1457,6 @@ export class GameStateManager {
     }
 
     get_active_note_indicators(): NoteIndicatorData[] {
-        if (!this.config.is_red_note_indicator_enabled) {
-            return [];
-        }
         return get_active_indicators(this.game_data.note_indicators);
     }
 

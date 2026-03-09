@@ -170,6 +170,7 @@ export class GameController {
             start_tile_pressed,
             score_data,
             this.score_renderer,
+            this.game_state.get_config().is_red_note_indicator_enabled,
         );
     }
 
