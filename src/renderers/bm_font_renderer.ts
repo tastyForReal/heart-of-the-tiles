@@ -415,7 +415,7 @@ export class BMFontRenderer {
 
         // Calculate text dimensions for anchor offset
         const text_width = calculate_text_width(text, this.font_data, scale);
-        const text_height = this.font_data.common.lineHeight * scale;
+        const text_height = this.font_data.common.line_height * scale;
 
         // Apply anchor offsets
         // anchor_x = 0: left edge at x, anchor_x = 0.5: center at x, anchor_x = 1: right edge at x
@@ -427,7 +427,7 @@ export class BMFontRenderer {
         let cursor_x = x + offset_x;
         const cursor_y = y + scroll_offset + offset_y;
 
-        const { scaleW, scaleH } = this.font_data.common;
+        const { scale_w, scale_h } = this.font_data.common;
 
         for (const char of text) {
             const char_code = char.charCodeAt(0);
@@ -437,16 +437,16 @@ export class BMFontRenderer {
                 continue;
             }
 
-            const char_x = cursor_x + char_info.xoffset * scale;
-            const char_y = cursor_y + char_info.yoffset * scale;
+            const char_x = cursor_x + char_info.x_offset * scale;
+            const char_y = cursor_y + char_info.y_offset * scale;
             const char_width = char_info.width * scale;
             const char_height = char_info.height * scale;
 
             // Calculate UV coordinates
-            const u0 = char_info.x / scaleW;
-            const v0 = char_info.y / scaleH;
-            const u1 = (char_info.x + char_info.width) / scaleW;
-            const v1 = (char_info.y + char_info.height) / scaleH;
+            const u0 = char_info.x / scale_w;
+            const v0 = char_info.y / scale_h;
+            const u1 = (char_info.x + char_info.width) / scale_w;
+            const v1 = (char_info.y + char_info.height) / scale_h;
 
             // Create two triangles (6 vertices) for the character quad
             vertices.push(
@@ -460,7 +460,7 @@ export class BMFontRenderer {
                 { position: [char_x, char_y + char_height], tex_coord: [u0, v1], color },
             );
 
-            cursor_x += char_info.xadvance * scale;
+            cursor_x += char_info.x_advance * scale;
         }
 
         return vertices;

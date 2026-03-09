@@ -7,9 +7,9 @@ export interface BMFontChar {
     y: number;
     width: number;
     height: number;
-    xoffset: number;
-    yoffset: number;
-    xadvance: number;
+    x_offset: number;
+    y_offset: number;
+    x_advance: number;
     page: number;
 }
 
@@ -17,10 +17,10 @@ export interface BMFontChar {
  * BMFont common info structure
  */
 export interface BMFontCommon {
-    lineHeight: number;
+    line_height: number;
     base: number;
-    scaleW: number;
-    scaleH: number;
+    scale_w: number;
+    scale_h: number;
     pages: number;
 }
 
@@ -52,7 +52,7 @@ export function parse_bm_font(fnt_content: string): BMFontData {
     const lines = fnt_content.split('\n');
 
     let info: BMFontInfo = { face: '', size: 0, bold: 0, italic: 0 };
-    let common: BMFontCommon = { lineHeight: 0, base: 0, scaleW: 0, scaleH: 0, pages: 0 };
+    let common: BMFontCommon = { line_height: 0, base: 0, scale_w: 0, scale_h: 0, pages: 0 };
     const chars = new Map<number, BMFontChar>();
     let page_file = '';
 
@@ -92,10 +92,10 @@ function parse_info_line(line: string): BMFontInfo {
  */
 function parse_common_line(line: string): BMFontCommon {
     return {
-        lineHeight: extract_number_value(line, 'lineHeight'),
+        line_height: extract_number_value(line, 'lineHeight'),
         base: extract_number_value(line, 'base'),
-        scaleW: extract_number_value(line, 'scaleW'),
-        scaleH: extract_number_value(line, 'scaleH'),
+        scale_w: extract_number_value(line, 'scaleW'),
+        scale_h: extract_number_value(line, 'scaleH'),
         pages: extract_number_value(line, 'pages'),
     };
 }
@@ -119,9 +119,9 @@ function parse_char_line(line: string): BMFontChar {
         y: extract_number_value(line, 'y'),
         width: extract_number_value(line, 'width'),
         height: extract_number_value(line, 'height'),
-        xoffset: extract_number_value(line, 'xoffset'),
-        yoffset: extract_number_value(line, 'yoffset'),
-        xadvance: extract_number_value(line, 'xadvance'),
+        x_offset: extract_number_value(line, 'xoffset'),
+        y_offset: extract_number_value(line, 'yoffset'),
+        x_advance: extract_number_value(line, 'xadvance'),
         page: extract_number_value(line, 'page'),
     };
 }
@@ -157,7 +157,7 @@ export function calculate_text_width(text: string, font_data: BMFontData, scale:
         const char_code = char.charCodeAt(0);
         const char_info = font_data.chars.get(char_code);
         if (char_info) {
-            width += char_info.xadvance * scale;
+            width += char_info.x_advance * scale;
         }
     }
     return width;
