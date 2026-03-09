@@ -6,9 +6,6 @@ import { GameState, GameMode, EndlessConfig, InputType } from './types.js';
 import { LevelData, RowTypeResult } from './json_level_reader.js';
 import { ScoreRenderer } from './score_renderer.js';
 
-/**
- * Orchestrates the main game loop (`requestAnimationFrame`) and bridges WebGPU rendering with pure game logic state.
- */
 export class GameController {
     private gpu_context: GPUContext;
     private renderer: Renderer;
@@ -27,10 +24,6 @@ export class GameController {
         this.input_handler = new InputHandler();
     }
 
-    /**
-     * Bootstraps the WebGPU context, renderer pipelines, and input listeners.
-     * Expects a valid HTMLCanvasElement. Returns false if WebGPU is unsupported.
-     */
     async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
         const gpu_initialized = await this.gpu_context.initialize(canvas);
         if (!gpu_initialized) {
@@ -65,9 +58,6 @@ export class GameController {
         });
     }
 
-    /**
-     * Routes the physical pointer click or keyboard tap into the game logic.
-     */
     private handle_lane_input(
         lane_index: number,
         screen_x: number,
@@ -178,9 +168,6 @@ export class GameController {
         this.renderer.resize(width, height);
     }
 
-    /**
-     * Loads a complete level with rows and music metadata for dynamic TPS.
-     */
     load_level(
         level_data: LevelData,
         game_mode: GameMode = GameMode.ONE_ROUND,
@@ -190,9 +177,6 @@ export class GameController {
         this.game_state.load_level(level_data, game_mode, endless_config, filename);
     }
 
-    /**
-     * Loads custom rows only (backward compatibility, uses default TPS).
-     */
     load_custom_rows(level_rows: RowTypeResult[]): void {
         this.game_state.load_custom_rows(level_rows);
     }

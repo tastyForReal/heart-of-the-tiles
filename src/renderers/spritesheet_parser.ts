@@ -102,9 +102,6 @@ export function parse_spritesheet(plist_content: string): SpritesheetData {
                 }
             }
 
-            // In this plist format, 'rotated' means the sprite is rotated 90 degrees CW in the atlas.
-            // When rotated, we must swap the atlas dimensions (frame.frame.w/h) to correctly
-            // reflect the area in the texture, and mark it as rotated for UV calculation.
             if (frame._raw_rotated && frame.frame) {
                 const tmp = frame.frame.w;
                 frame.frame.w = frame.frame.h;

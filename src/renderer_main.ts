@@ -40,7 +40,6 @@ async function main(): Promise<void> {
         return;
     }
 
-    // Initialize audio manager (preload audio samples)
     const audio_manager = get_audio_manager();
     audio_manager
         .initialize()
@@ -59,21 +58,15 @@ async function main(): Promise<void> {
         game_controller.resize(SCREEN_CONFIG.WIDTH, SCREEN_CONFIG.HEIGHT);
     });
 
-    // Pause game when window loses focus
     setup_focus_pause(game_controller);
 
     game_controller.start();
 
-    // Setup level loading button
     setup_level_loader(game_controller);
 
-    // Setup pause/play button
     setup_pause_play_button(game_controller);
 }
 
-/**
- * Strips the file extension from a filename.
- */
 function get_filename_without_extension(filename: string): string {
     const last_dot = filename.lastIndexOf('.');
     if (last_dot <= 0) return filename;
@@ -111,15 +104,12 @@ function setup_level_loader(game_controller: GameController): void {
                 return;
             }
 
-            // Hide loading status while dialog is open
             if (load_status) {
                 load_status.style.display = 'none';
             }
 
-            // Show the customize dialog
             const dialog_result = await show_customize_dialog(level_data);
 
-            // Apply custom TPS values to the music metadata
             const modified_level_data: LevelData = {
                 ...level_data,
                 musics: level_data.musics.map((music, i) => ({
@@ -128,10 +118,8 @@ function setup_level_loader(game_controller: GameController): void {
                 })),
             };
 
-            // Extract display name from filename
             const display_name = get_filename_without_extension(filename);
 
-            // Load the level with mode configuration
             game_controller.load_level(
                 modified_level_data,
                 dialog_result.game_mode,
@@ -139,7 +127,6 @@ function setup_level_loader(game_controller: GameController): void {
                 display_name,
             );
 
-            // Update window title
             document.title = `${display_name} - Untitled P Project`;
 
             if (load_status) {
@@ -166,7 +153,6 @@ function setup_level_loader(game_controller: GameController): void {
                 );
             });
         } catch (error) {
-            // Ignore cancellation from dialog
             if (error instanceof Error && error.message === 'Dialog cancelled') {
                 if (load_status) {
                     load_status.style.display = 'none';
@@ -197,7 +183,6 @@ function setup_pause_play_button(game_controller: GameController): void {
         return;
     }
 
-    // Hide button initially - it will be shown when game starts
     pause_play_button.style.display = 'none';
 
     const update_button_state = (): void => {
@@ -234,7 +219,6 @@ function setup_pause_play_button(game_controller: GameController): void {
         update_button_state();
     });
 
-    // Update button state periodically to sync with game state
     setInterval(update_button_state, 100);
 }
 

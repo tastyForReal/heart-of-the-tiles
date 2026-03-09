@@ -11,7 +11,7 @@ export class AudioManager {
     private sample_names: string[] = [];
     private midi_data: MidiJson | null = null;
     private last_played_note_index: number = -1;
-    private played_notes: Set<number> = new Set(); // Track played notes by their start time
+    private played_notes: Set<number> = new Set();
     private track_pointers: number[] = [];
 
     async initialize(): Promise<boolean> {
@@ -153,7 +153,6 @@ export class AudioManager {
         }
 
         try {
-            // URL-encode the file name to handle special characters like '#'
             const encoded_name = encodeURIComponent(sample_name);
             const response = await fetch(AUDIO_SAMPLES_PATH + encoded_name);
 
@@ -170,9 +169,6 @@ export class AudioManager {
         }
     }
 
-    /**
-     * Loads MIDI data for playback.
-     */
     load_midi_data(midi_data: MidiJson): void {
         this.midi_data = midi_data;
         this.reset_playback();
@@ -181,7 +177,6 @@ export class AudioManager {
         console.log(`  - PPQ: ${midi_data.header.ppq}`);
         console.log(`  - Number of tempo changes: ${midi_data.header.tempos.length}`);
 
-        // Log total notes across all tracks
         let total_notes = 0;
         for (let i = 0; i < midi_data.tracks.length; i++) {
             const track = midi_data.tracks[i];
@@ -193,24 +188,17 @@ export class AudioManager {
         }
         console.log(`  - Total notes: ${total_notes}`);
 
-        // Log tempo changes
         for (const tempo of midi_data.header.tempos) {
             console.log(`  - Tempo at ticks ${tempo.ticks}: ${tempo.bpm.toFixed(2)} BPM`);
         }
     }
 
-    /**
-     * Clears the loaded MIDI data.
-     */
     clear_midi_data(): void {
         console.log(`[AudioManager] Clearing MIDI data (previously had ${this.midi_data?.tracks.length ?? 0} tracks)`);
         this.midi_data = null;
         this.reset_playback();
     }
 
-    /**
-     * Resets playback state.
-     */
     reset_playback(): void {
         const previous_index = this.last_played_note_index;
         const previous_count = this.played_notes.size;
@@ -222,11 +210,6 @@ export class AudioManager {
         );
     }
 
-    /**
-     * Updates MIDI playback based on current stopwatch time.
-     * Plays notes that should be heard at the current time.
-     * Returns an array of note_ids that were played this update.
-     */
     update_midi_playback(current_time: number, skipped_note_ids: number[] = []): number[] {
         if (!this.midi_data || !this.is_initialized || !this.audio_context) {
             return [];
@@ -240,7 +223,6 @@ export class AudioManager {
         let notes_skipped_this_update = 0;
         const played_note_ids: number[] = [];
 
-        // Iterate through all tracks and play notes that should be triggered
         for (let track_idx = 0; track_idx < this.midi_data.tracks.length; track_idx++) {
             const track = this.midi_data.tracks[track_idx];
             if (!track) continue;
@@ -254,23 +236,19 @@ export class AudioManager {
                     continue;
                 }
 
-                // If note time is in the future, we can stop evaluating this track since notes are chronologically sorted.
                 if (note.time > current_time) {
                     break;
                 }
 
                 const lookback_window = 2.0;
 
-                // Check if the note falls within the lookback window. If not, it's too old and we skip playing it.
                 if (note.time > current_time - lookback_window) {
                     const note_id = Math.round(note.time * 1000) * 1000000 + track_idx * 1000 + note.midi;
 
                     if (!this.played_notes.has(note_id)) {
-                        // Check if note should be skipped (e.g., due to early release of long tile)
                         const is_skipped = skipped_note_ids.includes(note_id);
 
                         if (!is_skipped) {
-                            // Only play MIDI notes in valid range (21-108)
                             if (note.midi >= 21 && note.midi <= 108) {
                                 this.play_note_by_midi(note.midi);
                                 notes_played_this_update++;
@@ -299,8 +277,7 @@ export class AudioManager {
             );
         }
 
-        // Clean up old played notes (notes that have finished playing)
-        const max_note_time = current_time - 10; // Keep notes from last 10 seconds
+        const max_note_time = current_time - 10;
         let cleaned_count = 0;
         for (const note_id of this.played_notes) {
             const note_time = Math.floor(note_id / 1000000) / 1000;
@@ -316,9 +293,6 @@ export class AudioManager {
         return played_note_ids;
     }
 
-    /**
-     * Dynamically adds a note to the loaded MIDI tracks for endless looped sections.
-     */
     add_dynamic_midi_note(track_idx: number, midi: number, time: number): void {
         if (!this.midi_data) return;
         const track = this.midi_data.tracks[track_idx];
@@ -336,9 +310,6 @@ export class AudioManager {
         });
     }
 
-    /**
-     * Plays a note by MIDI number.
-     */
     play_note_by_midi(midi_number: number): void {
         if (!this.is_initialized || !this.audio_context) {
             console.warn(`[AudioManager] Cannot play MIDI ${midi_number}: audio not initialized`);
@@ -349,14 +320,12 @@ export class AudioManager {
             this.audio_context.resume();
         }
 
-        // Get the note name from the MIDI number
         const note_name = MIDI_TO_NOTE[midi_number];
         if (!note_name) {
             console.warn(`[AudioManager] No note name mapping for MIDI ${midi_number}`);
             return;
         }
 
-        // Convert note name to file name
         const file_name = note_name + '.mp3';
         console.log(
             `[AudioManager] play_note_by_midi: MIDI ${midi_number} -> note "${note_name}" -> file "${file_name}"`,
@@ -365,7 +334,6 @@ export class AudioManager {
     }
 
     play_random_sample(): void {
-        // Don't play random samples if MIDI data is loaded
         if (this.midi_data) {
             return;
         }
@@ -431,9 +399,7 @@ export class AudioManager {
         for (const source of this.active_sources) {
             try {
                 source.stop();
-            } catch {
-                // Source may have already stopped
-            }
+            } catch {}
         }
         this.active_sources.clear();
     }

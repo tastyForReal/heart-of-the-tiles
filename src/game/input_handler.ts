@@ -61,7 +61,6 @@ export class InputHandler {
             const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
             const lane_index = Math.floor(screen_x / column_width);
 
-            // Limit to valid lanes
             if (lane_index < 0 || lane_index >= SCREEN_CONFIG.COLUMN_COUNT) return;
 
             this.on_lane_input(lane_index, screen_x, screen_y, is_down, InputType.MOUSE_CLICK);
@@ -87,7 +86,7 @@ export class InputHandler {
 
             if (key in KEY_SLOT_MAP) {
                 event.preventDefault();
-                if (event.repeat) return; // Ignore key repeat
+                if (event.repeat) return;
                 const lane_index = KEY_SLOT_MAP[key];
                 if (lane_index !== undefined && this.on_lane_input) {
                     const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;

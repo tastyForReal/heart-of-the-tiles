@@ -1,22 +1,12 @@
 import { LevelData } from './json_level_reader.js';
 import { GameMode, EndlessConfig, MusicMetadata } from './types.js';
 
-/**
- * Result returned when the player clicks "Play" in the customize dialog.
- */
 export interface CustomizeDialogResult {
     game_mode: GameMode;
     endless_config: EndlessConfig | null;
     custom_tps_values: number[];
 }
 
-/**
- * Opens the customize level dialog with a two-page flow:
- *  - Page 1: Select game mode
- *  - Page 2: Configure settings for the selected mode
- *
- * Resolves with the chosen game mode and config, or rejects if cancelled.
- */
 export function show_customize_dialog(level_data: LevelData): Promise<CustomizeDialogResult> {
     return new Promise((resolve, reject) => {
         const overlay = document.createElement('div');
@@ -25,9 +15,6 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
         const dialog = document.createElement('div');
         dialog.className = 'customize_dialog';
 
-        // =====================================================================
-        // Dialog header (title + back button)
-        // =====================================================================
         const header = document.createElement('div');
         header.className = 'dialog_header';
 
@@ -49,9 +36,6 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
         dialog.appendChild(header);
         dialog.appendChild(subtitle);
 
-        // =====================================================================
-        // Page 1: Mode selection
-        // =====================================================================
         const page1 = document.createElement('div');
         page1.className = 'dialog_page';
 
@@ -82,7 +66,6 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
         mode_options.appendChild(endless_challenge_option.element);
         page1.appendChild(mode_options);
 
-        // Track selected mode
         let selected_mode: string = 'one_round';
 
         const all_mode_options = [
@@ -112,14 +95,10 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
 
         dialog.appendChild(page1);
 
-        // =====================================================================
-        // Page 2: Configuration for selected mode
-        // =====================================================================
         const page2 = document.createElement('div');
         page2.className = 'dialog_page';
         page2.style.display = 'none';
 
-        // --- Unit Switch (TPS/BPM) ---
         const unit_switch_row = document.createElement('div');
         unit_switch_row.className = 'unit_switch_row';
 
@@ -127,13 +106,12 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
         unit_label.className = 'unit_switch';
         const unit_checkbox = document.createElement('input');
         unit_checkbox.type = 'checkbox';
-        unit_checkbox.checked = false; // Default is TPS
+        unit_checkbox.checked = false;
         unit_label.appendChild(unit_checkbox);
         unit_label.appendChild(document.createTextNode(' Show as BPM'));
         unit_switch_row.appendChild(unit_label);
         page2.appendChild(unit_switch_row);
 
-        // --- One Round / Endless Fixed TPS config (shared layout, separate inputs) ---
         const tps_config = document.createElement('div');
         tps_config.className = 'mode_config_section visible';
 
@@ -175,7 +153,6 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
 
         tps_config.appendChild(tps_container);
 
-        // --- Challenge config ---
         const challenge_config = document.createElement('div');
         challenge_config.className = 'mode_config_section visible';
 
@@ -224,21 +201,17 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
 
         dialog.appendChild(page2);
 
-        // Handle Unit Switch Toggle logic
         unit_checkbox.addEventListener('change', () => {
             const show_bpm = unit_checkbox.checked;
 
-            // Update Section Rows
             for (const item of tps_inputs) {
                 const current_val = parseFloat(item.input.value);
                 if (show_bpm) {
-                    // Convert TPS to BPM: BPM = TPS * base_beats * 60
                     const bpm = current_val * item.metadata.base_beats * 60;
                     item.input.value = Math.round(bpm).toString();
                     item.label.textContent = `Section ${item.metadata.id + 1} (BPM):`;
                     item.input.step = '1';
                 } else {
-                    // Convert BPM back to TPS: TPS = BPM / base_beats / 60
                     const tps = current_val / item.metadata.base_beats / 60;
                     item.input.value = tps.toFixed(4);
                     item.label.textContent = `Section ${item.metadata.id + 1}:`;
@@ -246,9 +219,8 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
                 }
             }
 
-            // Update Challenge Starting TPS
             const start_val = parseFloat(starting_tps_input.value);
-            // Challenge uses first music section's base_beats for conversion
+
             const first_music = level_data.musics[0];
             const base_beats = first_music ? first_music.base_beats : 1;
 
@@ -265,9 +237,6 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
             }
         });
 
-        // =====================================================================
-        // Buttons
-        // =====================================================================
         const button_row = document.createElement('div');
         button_row.className = 'dialog_buttons';
 
@@ -288,9 +257,6 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
         overlay.appendChild(dialog);
         document.body.appendChild(overlay);
 
-        // =====================================================================
-        // Page navigation
-        // =====================================================================
         let current_page = 1;
 
         function show_page(page_num: number): void {
@@ -308,7 +274,6 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
                 back_btn.style.display = '';
                 action_btn.textContent = 'Play';
 
-                // Show the appropriate config for the selected mode
                 if (selected_mode === 'endless_challenge') {
                     tps_config.style.display = 'none';
                     challenge_config.style.display = '';
@@ -338,12 +303,10 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
 
         action_btn.addEventListener('click', () => {
             if (current_page === 1) {
-                // Go to page 2
                 show_page(2);
                 return;
             }
 
-            // Page 2: collect results and resolve
             let game_mode: GameMode;
             let endless_config: EndlessConfig | null = null;
             let custom_tps: number[] = [];
@@ -351,7 +314,6 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
 
             function value_to_tps(val: number, base_beats: number): number {
                 if (is_bpm_mode) {
-                    // Convert BPM back to TPS
                     return val / base_beats / 60;
                 }
                 return val;
@@ -394,9 +356,6 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
     });
 }
 
-/**
- * Helper to create a mode option element with radio button.
- */
 function create_mode_option(
     value: string,
     label_text: string,

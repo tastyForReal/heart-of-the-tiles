@@ -12,11 +12,6 @@ interface RectangleVertex {
     color: [number, number, number, number];
 }
 
-/**
- * Manages the WebGPU rendering pipelines and buffers.
- * Translates the pure logical game state into triangle-list vertices,
- * utilizing a flat-colored shader pipeline for rendering paths and particles.
- */
 export class Renderer {
     private gpu_context: GPUContext;
     private font_renderer: BMFontRenderer;
@@ -63,8 +58,8 @@ export class Renderer {
             fn vertex_main(input: VertexInput) -> VertexOutput {
                 var output: VertexOutput;
 
-                // Transform canvas pixel space (top-left origin) to WebGPU Normalized Device Coordinates (NDC)
-                // NDC: [-1, -1] bottom-left, [1, 1] top-right
+                
+                
                 let x = (input.position.x / uniforms.screen_width) * 2.0 - 1.0;
                 let y = 1.0 - (input.position.y / uniforms.screen_height) * 2.0;
                 output.position = vec4<f32>(x, y, 0.0, 1.0);
@@ -170,7 +165,6 @@ export class Renderer {
             },
         });
 
-        // Initialize the BMFont renderer (texture path is read from .fnt file)
         const font_initialized = await this.font_renderer.initialize(
             './assets/images/fonts/SofiaSansExtraCondensed.fnt',
         );
@@ -181,7 +175,6 @@ export class Renderer {
             console.log('BMFont renderer initialized successfully');
         }
 
-        // Initialize the sprite renderer
         const sprite_initialized = await this.sprite_renderer.initialize(
             './assets/images/gameplay/1.plist',
             './assets/images/gameplay/1.png',
@@ -255,7 +248,7 @@ export class Renderer {
     }
 
     private create_note_indicator_vertices(indicator: NoteIndicatorData, scroll_offset: number): RectangleVertex[] {
-        const color: [number, number, number, number] = [1, 0, 0, 1]; // RED
+        const color: [number, number, number, number] = [1, 0, 0, 1];
         const y = indicator.y + scroll_offset;
 
         return [
@@ -269,11 +262,6 @@ export class Renderer {
         ];
     }
 
-    /**
-     * Rebuilds the combined vertex buffer dynamically per-frame, then submits the draw call.
-     * Uses a single unified render pass with one pipeline and buffer strategy, optimizing for
-     * the relatively low polygon count of flat 2D shapes rather than relying on instancing.
-     */
     render(
         visible_rows: RowData[],
         particles: ParticleData[],
@@ -292,7 +280,6 @@ export class Renderer {
             return;
         }
 
-        // Pre-group active indicators by row_index for efficient lookup during tile rendering
         const indicators_by_row = new Map<number, NoteIndicatorData[]>();
         for (const indicator of note_indicators) {
             let list = indicators_by_row.get(indicator.row_index);
@@ -305,7 +292,6 @@ export class Renderer {
 
         const all_vertices: RectangleVertex[] = [];
 
-        // 1. Solid background
         const bg_vertices: RectangleVertex[] = [
             { position: [0, 0], color: [1, 1, 1, 1] },
             { position: [SCREEN_CONFIG.WIDTH, 0], color: [1, 1, 1, 1] },
@@ -316,7 +302,6 @@ export class Renderer {
         ];
         all_vertices.push(...bg_vertices);
 
-        // Pre-collect tiles for sprite rendering
         const tiles_to_render: { rect: TileData; row: RowData }[] = [];
         let start_tile_data: { x: number; y: number; width: number; height: number } | null = null;
 
@@ -324,7 +309,6 @@ export class Renderer {
             for (const rect of row.tiles) {
                 tiles_to_render.push({ rect, row });
 
-                // Capture start tile info for "START" text
                 if (row.row_type === RowType.START) {
                     start_tile_data = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
                     if (rect.is_pressed) start_tile_pressed = true;
@@ -332,7 +316,6 @@ export class Renderer {
             }
         }
 
-        // Add game over indicator to flat vertices (if any)
         if (game_over_indicator) {
             const gy = game_over_indicator.y + scroll_offset;
             if (gy + game_over_indicator.height > 0 && gy < SCREEN_CONFIG.HEIGHT) {
@@ -343,7 +326,6 @@ export class Renderer {
 
         const layer1_vertex_count = all_vertices.length;
 
-        // Add particles and grid lines to flat vertices
         for (const particle of particles) {
             if (particle.y + particle.size / 2 > 0 && particle.y - particle.size / 2 < SCREEN_CONFIG.HEIGHT) {
                 all_vertices.push(...this.create_particle_vertices(particle));
@@ -355,8 +337,6 @@ export class Renderer {
             all_vertices.push(...this.create_grid_line_vertices(i * column_width));
         }
 
-        // Add note indicators to flat vertices (Red Boxes)
-        // De-duplicate stacked notes visually to improve performance
         if (show_red_note_indicators) {
             const seen_indicator_hits = new Set<string>();
             for (const indicator of note_indicators) {
@@ -371,7 +351,6 @@ export class Renderer {
             }
         }
 
-        // Prepare vertex buffer for flat geometry
         const vertex_data = new Float32Array(all_vertices.length * 6);
         for (let i = 0; i < all_vertices.length; i++) {
             const v = all_vertices[i];
@@ -396,7 +375,6 @@ export class Renderer {
             device.queue.writeBuffer(this.vertex_buffer, 0, vertex_data);
         }
 
-        // Start Encode
         const texture = this.gpu_context.get_current_texture();
         const encoder = this.gpu_context.create_command_encoder();
         if (!texture || !encoder) return;
@@ -412,7 +390,6 @@ export class Renderer {
             ],
         });
 
-        // Draw Layer 1 (Flat BG + Game Over)
         render_pass.setPipeline(this.tile_pipeline);
         render_pass.setBindGroup(0, this.bind_group);
         render_pass.setVertexBuffer(0, this.vertex_buffer);
@@ -420,12 +397,11 @@ export class Renderer {
             render_pass.draw(layer1_vertex_count);
         }
 
-        // Draw Sprites
         this.sprite_renderer.begin_frame();
         if (this.sprite_renderer.is_loaded()) {
             const now = performance.now();
-            const ANIM_FPS = 1000 / 30; // 33.33333333333333
-            const FRAME_TIME = 1000 / ANIM_FPS; // 30ms
+            const ANIM_FPS = 1000 / 30;
+            const FRAME_TIME = 1000 / ANIM_FPS;
 
             for (const { rect, row } of tiles_to_render) {
                 const rect_y = rect.y + scroll_offset;
@@ -437,7 +413,6 @@ export class Renderer {
                 const scale = rect.width / 134;
 
                 if (is_long_tile) {
-                    // Long Tile Layers
                     if (rect.is_pressed && !rect.is_released_early) {
                         this.sprite_renderer.render_sprite(
                             'long_finish.png',
@@ -486,7 +461,6 @@ export class Renderer {
                         );
                     }
 
-                    // Progress
                     const FADE_DURATION = 300;
                     let fade_opacity = 1.0;
                     let should_render_progress = rect.progress > 0 && rect.progress < rect.height;
@@ -533,24 +507,20 @@ export class Renderer {
                             },
                         );
 
-                        // Render dot_light.png and circle_light.png animations on MIDI note hit
                         if (rect.last_note_played_at !== null) {
                             const elapsed = now - rect.last_note_played_at;
 
-                            // dot_light.png animation (300ms)
                             const DOT_DURATION = 300;
-                            const PEAK_TIME = 50; // ms
+                            const PEAK_TIME = 50;
                             if (elapsed < DOT_DURATION) {
                                 let anim_scale = 1.0;
                                 let anim_opacity = 1.0;
 
                                 if (elapsed < PEAK_TIME) {
-                                    // Scale 1.0 to 1.3, Opacity 100%
                                     const t = elapsed / PEAK_TIME;
                                     anim_scale = 1.0 + (1.3 - 1.0) * t;
                                     anim_opacity = 1.0;
                                 } else {
-                                    // Scale 1.3 to 0.0, Opacity 1.0 to 0.0 over the remaining duration
                                     const t = (elapsed - PEAK_TIME) / (DOT_DURATION - PEAK_TIME);
                                     anim_scale = 1.3 * (1.0 - t);
                                     anim_opacity = 1.0 - t;
@@ -573,9 +543,8 @@ export class Renderer {
                                 );
                             }
 
-                            // circle_light.png animation (300ms) - support multiple instances
                             const CIRCLE_DURATION = 300;
-                            // Filter out finished animations to avoid memory leak
+
                             rect.active_circle_animations = rect.active_circle_animations.filter(
                                 start_time => now - start_time < CIRCLE_DURATION,
                             );
@@ -605,7 +574,6 @@ export class Renderer {
                         }
                     }
 
-                    // Render dot.png note indicators for holding long tiles
                     if (rect.is_holding) {
                         const row_indicators = indicators_by_row.get(row.row_index);
                         if (row_indicators) {
@@ -634,7 +602,6 @@ export class Renderer {
                         }
                     }
                 } else {
-                    // Normal/Start Tile + Animation
                     let frame_name = row.row_type === RowType.START ? 'tile_start.png' : 'tile_black.png';
                     if (rect.is_pressed && rect.completed_at !== null) {
                         const elapsed = now - rect.completed_at;
@@ -657,7 +624,6 @@ export class Renderer {
             }
         }
 
-        // Draw Layer 2 (Particles, Grid, Indicators)
         render_pass.setPipeline(this.tile_pipeline);
         render_pass.setBindGroup(0, this.bind_group);
         render_pass.setVertexBuffer(0, this.vertex_buffer);
@@ -666,7 +632,6 @@ export class Renderer {
             render_pass.draw(layer2_vertex_count, 1, layer1_vertex_count);
         }
 
-        // Draw Text/Score
         this.font_renderer.begin_frame();
         if (start_tile_data && this.font_renderer.is_loaded()) {
             const white_color: [number, number, number, number] = [1, 1, 1, start_tile_pressed ? 0 : 1];

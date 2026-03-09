@@ -1,12 +1,3 @@
-/**
- * MIDI type definitions for the game.
- * Contains types for parsed MIDI data and note mappings.
- */
-
-/**
- * Mapping of note names to MIDI note numbers.
- * Used for audio sample playback.
- */
 export const NOTE_TO_MIDI: Record<string, number> = {
     c5: 108,
     b4: 107,
@@ -100,39 +91,26 @@ export const NOTE_TO_MIDI: Record<string, number> = {
     empty: 1,
 };
 
-/**
- * Reverse mapping: MIDI note number to note name (for audio file lookup).
- */
 export const MIDI_TO_NOTE: Record<number, string> = {};
 
-// Build reverse mapping
 for (const [note, midi] of Object.entries(NOTE_TO_MIDI)) {
     if (midi >= 21 && midi <= 108) {
         MIDI_TO_NOTE[midi] = note;
     }
 }
 
-/**
- * Header information for formatted MIDI JSON.
- */
 export interface MidiHeader {
     ppq: number;
     tempos: MidiTempo[];
     name?: string;
 }
 
-/**
- * Tempo information.
- */
 export interface MidiTempo {
     ticks: number;
     bpm: number;
     time?: number;
 }
 
-/**
- * Note information for formatted MIDI JSON.
- */
 export interface MidiNote {
     midi: number;
     name?: string;
@@ -144,79 +122,47 @@ export interface MidiNote {
     note_off_velocity: number;
 }
 
-/**
- * Track information for formatted MIDI JSON.
- */
 export interface MidiTrack {
     name?: string;
     channel?: number;
     notes: MidiNote[];
 }
 
-/**
- * Complete formatted MIDI JSON structure.
- */
 export interface MidiJson {
     header: MidiHeader;
     tracks: MidiTrack[];
 }
 
-/**
- * Represents a parsed message from the score track.
- */
 export interface ParsedMessage {
-    /** Message type: 0 = note on, 1 = note off, 2 = delay/time, 3 = ignore */
     type: 0 | 1 | 2 | 3;
-    /** The value (note number for note on/off, ticks for delay) */
+
     value: number;
 }
 
-/**
- * Represents a parsed track with messages.
- */
 export interface ParsedTrack {
     base_beats: number;
     messages: ParsedMessage[];
 }
 
-/**
- * Represents a parsed music part with tempo and tracks.
- */
 export interface ParsedPart {
     bpm: number;
     base_beats: number;
     tracks: ParsedTrack[];
 }
 
-/**
- * Music entry in the raw JSON file format.
- */
 export interface RawMusicEntry {
     id: number;
     bpm?: number;
-    /**
-     * Property baseBeats is kept in camelCase to maintain compatibility with existing
-     * JSON level files. Do not rename to base_beats.
-     */
+
     baseBeats: number;
     scores: string[];
 }
 
-/**
- * Raw JSON file format.
- */
 export interface RawMusicInputFile {
-    /**
-     * Property baseBpm is kept in camelCase to maintain compatibility with existing
-     * JSON level files. Do not rename to base_bpm.
-     */
     baseBpm: number;
     musics: RawMusicEntry[];
 }
 
-/**
- * Mapping of base_beats string values to multiplier integers.
- */
 export const BASE_BEATS_MAP: Record<string, number> = {
     '15': 1,
     '7.5': 2,

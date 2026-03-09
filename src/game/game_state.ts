@@ -49,11 +49,11 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
         last_double_lanes: null,
         active_row_index: 0,
         completed_rows_count: 0,
-        // TPS defaults
+
         current_tps: SCREEN_CONFIG.DEFAULT_TPS,
         current_music_index: 0,
         musics_metadata: [],
-        // MIDI playback defaults
+
         current_midi_time: 0,
         midi_loaded: false,
         has_game_started: false,
@@ -72,23 +72,16 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
     };
 }
 
-/**
- * Calculates pre-computed timing windows for all level rows.
- * Each row gets a start_time, mid_time, and end_time based on TPS and height.
- */
 export function calculate_level_row_timings(rows: RowData[], musics_metadata: MusicMetadata[]): RowTiming[] {
     const timings: RowTiming[] = [];
     let cumulative_time = 0;
 
-    // Start row is index 0, level rows start at index 1 in the rows array
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         if (!row) continue;
 
-        // Level row index is 0-based for music metadata lookup
         const level_row_index = row.row_index - 1;
 
-        // Find which music section this row belongs to, to get its TPS
         let tps: number = SCREEN_CONFIG.DEFAULT_TPS;
         for (const music of musics_metadata) {
             if (level_row_index >= music.start_row_index && level_row_index < music.end_row_index) {
@@ -114,10 +107,6 @@ export function calculate_level_row_timings(rows: RowData[], musics_metadata: Mu
     return timings;
 }
 
-/**
- * Determines the occupied columns for a double row based on the preceding row type.
- * Ensures the generated pattern maintains reachable paths for the player without awkward cross-screen jumps.
- */
 function determine_double_lanes(preceding_row: RowData | null): [number, number] {
     if (preceding_row === null) {
         return Math.random() < 0.5 ? [0, 2] : [1, 3];
@@ -149,13 +138,9 @@ function determine_double_lanes(preceding_row: RowData | null): [number, number]
     return Math.random() < 0.5 ? [0, 2] : [1, 3];
 }
 
-/**
- * Generates rows from RowTypeResult array (from level loader)
- */
 export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowData[] {
     const rows: RowData[] = [];
 
-    // Create start row first
     const start_y = SCREEN_CONFIG.HEIGHT - SCREEN_CONFIG.BASE_ROW_HEIGHT * 2;
     const start_lane = Math.floor(Math.random() * 4);
     const start_tile = create_tile(start_lane, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
@@ -180,21 +165,19 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
         const row_height = row_data.height_multiplier * SCREEN_CONFIG.BASE_ROW_HEIGHT;
         current_y -= row_height;
 
-        const row_index = i + 1; // +1 because start row is index 0
-        const preceding_row = rows[rows.length - 1]; // Get the last added row
+        const row_index = i + 1;
+        const preceding_row = rows[rows.length - 1];
         let tiles: TileData[] = [];
 
         if (row_data.type === RowType.SINGLE) {
             let lane: number;
 
-            // If preceded by a double, choose from the empty lanes (gaps)
             if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
                 const occupied = preceding_row.tiles.map(r => r.lane_index);
                 const empty_lanes = [0, 1, 2, 3].filter(s => !occupied.includes(s));
                 const chosen_lane = empty_lanes[Math.floor(Math.random() * empty_lanes.length)];
                 lane = chosen_lane ?? 0;
             } else {
-                // Otherwise, choose any lane except the last single lane
                 const available_lanes = [0, 1, 2, 3].filter(s => s !== last_single_lane);
                 const chosen_lane = available_lanes[Math.floor(Math.random() * available_lanes.length)];
                 lane = chosen_lane ?? 0;
@@ -203,11 +186,9 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
             tiles = [create_tile(lane, current_y, row_height, COLORS.BLACK, 1.0)];
             last_single_lane = lane;
         } else if (row_data.type === RowType.DOUBLE) {
-            // Use preceding row to determine lanes
             const lanes = determine_double_lanes(preceding_row ?? null);
             tiles = lanes.map(lane => create_tile(lane, current_y, row_height, COLORS.BLACK, 1.0));
         }
-        // EMPTY rows have no tiles
 
         rows.push({
             row_index: row_index,
@@ -256,9 +237,6 @@ export class GameStateManager {
         document.title = 'Untitled P Project';
     }
 
-    /**
-     * Loads a complete level with rows and music metadata for dynamic TPS
-     */
     load_level(
         level_data: LevelData,
         game_mode: GameMode = GameMode.ONE_ROUND,
@@ -267,13 +245,11 @@ export class GameStateManager {
     ): void {
         const rows = generate_rows_from_level_data(level_data.rows);
 
-        // Determine initial TPS from first music
         const initial_tps =
             level_data.musics.length > 0
                 ? (level_data.musics[0]?.tps ?? SCREEN_CONFIG.DEFAULT_TPS)
                 : SCREEN_CONFIG.DEFAULT_TPS;
 
-        // Load MIDI data to audio manager if available
         const is_midi_loaded = level_data.midi_json !== null;
         console.log(`[GameState] Loading level:`);
         console.log(`  - Total rows: ${rows.length}`);
@@ -304,14 +280,14 @@ export class GameStateManager {
             last_double_lanes: null,
             active_row_index: 0,
             completed_rows_count: 0,
-            // TPS settings from level data
+
             current_tps:
                 game_mode === GameMode.ENDLESS_CHALLENGE && endless_config?.starting_tps !== undefined
                     ? endless_config.starting_tps
                     : initial_tps,
             current_music_index: 0,
             musics_metadata: level_data.musics,
-            // MIDI playback settings
+
             current_midi_time: 0,
             midi_loaded: is_midi_loaded,
             has_game_started: false,
@@ -329,7 +305,6 @@ export class GameStateManager {
             loop_0_midi_notes: [],
         };
 
-        // Build note indicators from MIDI data after rows are set
         if (level_data.midi_json) {
             const all_loop_notes: {
                 track_idx: number;
@@ -348,7 +323,7 @@ export class GameStateManager {
                         const timing = level_row_timings[r];
                         if (timing && note.time >= timing.start_time && note.time <= timing.end_time) {
                             if (timing.end_time > timing.start_time) {
-                                target_row_index = r + 1; // 1-based level row index
+                                target_row_index = r + 1;
                                 target_fraction =
                                     (note.time - timing.start_time) / (timing.end_time - timing.start_time);
                                 break;
@@ -376,13 +351,10 @@ export class GameStateManager {
             console.log(`[GameState] Built ${this.game_data.note_indicators.length} note indicators`);
         }
         this.particle_system.clear();
-        // Reset score when loading a new level
+
         this.score_manager.reset();
     }
 
-    /**
-     * Loads custom rows from level data (backward compatibility)
-     */
     load_custom_rows(level_rows: RowTypeResult[]): void {
         const rows = generate_rows_from_level_data(level_rows);
         this.game_data = {
@@ -415,7 +387,7 @@ export class GameStateManager {
             loop_count: 0,
             current_filename: '',
             raw_level_rows: level_rows,
-            loop_0_midi_notes: [], // Populated after load if MIDI present
+            loop_0_midi_notes: [],
         };
         this.particle_system.clear();
         this.audio_manager.clear_midi_data();
@@ -459,20 +431,11 @@ export class GameStateManager {
         return this.game_data.has_game_started;
     }
 
-    /**
-     * Returns true if the yellow start tile has been pressed.
-     * This is different from has_game_started which is only true after pressing a black tile.
-     */
     is_start_tile_pressed(): boolean {
         const start_row = this.game_data.rows.find(r => r.row_type === RowType.START);
         return start_row?.is_completed ?? false;
     }
 
-    /**
-     * Calculates the current scroll speed based on TPS.
-     * TPS = tiles per second, where each tile is BASE_ROW_HEIGHT pixels.
-     * Scroll speed = TPS * BASE_ROW_HEIGHT (pixels per second)
-     */
     private get_scroll_speed(): number {
         return this.game_data.current_tps * SCREEN_CONFIG.BASE_ROW_HEIGHT;
     }
@@ -486,11 +449,6 @@ export class GameStateManager {
         }
     }
 
-    /**
-     * Checks and updates the current TPS based on which music section the given row belongs to.
-     * This is called when pressing a tile to update speed immediately on first tile press of a new section.
-     * Returns true if a music section transition occurred.
-     */
     private check_and_update_music_for_row(row: RowData): boolean {
         const musics = this.game_data.musics_metadata;
         if (musics.length === 0) return false;
@@ -512,7 +470,6 @@ export class GameStateManager {
                             `[GameState] Transitioned to section ${i}, TPS updating to ${music.tps.toFixed(3)}`,
                         );
                     }
-                    // For challenge mode, TPS is managed by update_challenge_tps, so don't override here
 
                     console.log(
                         `[GameState] Music transition: TPS ${previous_tps.toFixed(2)} -> ${this.game_data.current_tps.toFixed(2)}, music index ${i}`,
@@ -536,26 +493,21 @@ export class GameStateManager {
         const scroll_delta = scroll_speed * delta_time;
         this.game_data.scroll_offset += scroll_delta;
 
-        // Only update playback stopwatch and MIDI playback after game has started (first black tile pressed)
         if (this.game_data.has_game_started) {
             const previous_stopwatch = this.game_data.current_midi_time;
 
             if (this.game_data.midi_playing) {
-                // Scale stopwatch advancement by the ratio of current_tps to the section's native TPS
-                // This ensures audio stays in sync with accelerated visual scrolling in Challenge Mode.
                 const current_music = this.game_data.musics_metadata[this.game_data.current_music_index];
                 const native_tps = current_music?.tps ?? SCREEN_CONFIG.DEFAULT_TPS;
                 const speed_multiplier = this.game_data.current_tps / native_tps;
 
                 this.game_data.current_midi_time += delta_time * speed_multiplier;
 
-                // Cap at target time
                 if (this.game_data.current_midi_time >= this.game_data.target_time_for_next_note) {
                     this.game_data.current_midi_time = this.game_data.target_time_for_next_note - 0.0001;
                     this.game_data.midi_playing = false;
                 }
 
-                // Update MIDI playback and consume note indicators
                 if (this.game_data.midi_loaded) {
                     const played_note_ids = this.audio_manager.update_midi_playback(
                         this.game_data.current_midi_time,
@@ -565,7 +517,6 @@ export class GameStateManager {
                 }
             }
 
-            // Log stopwatch update every 0.5 seconds
             if (Math.floor(this.game_data.current_midi_time * 2) !== Math.floor(previous_stopwatch * 2)) {
                 console.log(
                     `[GameState] Stopwatch: ${this.game_data.current_midi_time.toFixed(3)}s, Target: ${this.game_data.target_time_for_next_note.toFixed(3)}s, Resumed: ${this.game_data.midi_playing}`,
@@ -601,7 +552,6 @@ export class GameStateManager {
         const last_music = musics[musics.length - 1];
         if (!last_music) return;
 
-        // Check if we reached the last section — regenerate once per loop
         if (this.game_data.current_music_index === musics.length - 1) {
             const rows_per_loop = last_music.end_row_index;
             const expected_total_rows = (this.game_data.loop_count + 2) * rows_per_loop + 1;
@@ -612,8 +562,6 @@ export class GameStateManager {
                 );
                 this.append_level_loop();
 
-                // Performance Optimization: aggressive array footprint reduction!
-                // Cut loose unneeded NoteIndicator components floating in long-passed loop planes.
                 const cleanup_threshold_index = this.game_data.active_row_index - 100;
                 this.game_data.note_indicators = this.game_data.note_indicators.filter(
                     ind => ind.row_index >= cleanup_threshold_index,
@@ -622,13 +570,6 @@ export class GameStateManager {
         }
     }
 
-    /**
-     * Appends a new set of level rows for endless mode looping.
-     * Uses the stored raw_level_rows (RowTypeResult[]) to regenerate row data.
-     * For non-challenge mode, TPS is NOT bumped here — instead it is bumped
-     * when the player presses the first tile of the first section of the new loop
-     * (handled in check_and_update_music_for_row).
-     */
     private append_level_loop(): void {
         const raw_rows = this.game_data.raw_level_rows;
         if (raw_rows.length === 0) return;
@@ -644,7 +585,6 @@ export class GameStateManager {
             last_single_lane = last_existing_row.tiles[0]?.lane_index ?? 0;
         }
 
-        // Generate new rows from raw level data
         for (let i = 0; i < raw_rows.length; i++) {
             const row_data = raw_rows[i];
             if (!row_data) continue;
@@ -709,11 +649,9 @@ export class GameStateManager {
             });
         }
 
-        // Extend level_row_timings for the new rows
         const new_timings = calculate_level_row_timings(current_rows, this.game_data.musics_metadata);
         this.game_data.level_row_timings = new_timings;
 
-        // Generate mirrored NoteIndicatorData & MIDI notes for the appended loop
         const AUDIO_MANAGER = get_audio_manager();
 
         const loop_0_indicators = this.game_data.note_indicators.filter(ind => ind.row_index <= original_total);
@@ -722,7 +660,7 @@ export class GameStateManager {
             if (ind.time_fraction === undefined || ind.track_idx === undefined || ind.midi === undefined) continue;
 
             const new_row_index = ind.row_index + new_loop_offset;
-            const new_row_timing = new_timings[new_row_index - 1]; // 0-based
+            const new_row_timing = new_timings[new_row_index - 1];
             if (!new_row_timing) continue;
 
             const new_time =
@@ -733,9 +671,8 @@ export class GameStateManager {
 
             const row_bottom = new_row.y_position + new_row.height;
             const base_height_edge = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
-            const indicator_y = base_height_edge - ind.time_fraction * new_row.height - 8; // INDICATOR_Y_OFFSET = -8
+            const indicator_y = base_height_edge - ind.time_fraction * new_row.height - 8;
 
-            // Recompute note_id with new time to prevent collisions, while keeping track and midi
             const new_note_id = Math.round(new_time * 1000) * 1000000 + ind.track_idx * 1000 + ind.midi;
 
             this.game_data.note_indicators.push({
@@ -753,10 +690,9 @@ export class GameStateManager {
             });
         }
 
-        // Generate dynamically scheduled MIDI notes matching the row timing scaling
         for (const mn of this.game_data.loop_0_midi_notes) {
             const new_row_index = mn.row_index + new_loop_offset;
-            const new_row_timing = new_timings[new_row_index - 1]; // 0-based
+            const new_row_timing = new_timings[new_row_index - 1];
             if (!new_row_timing) continue;
 
             const new_time =
@@ -810,22 +746,21 @@ export class GameStateManager {
                         rect.is_holding = true;
                         rect.last_note_played_at = performance.now();
                         rect.active_circle_animations.push(rect.last_note_played_at);
-                        // Start progress bar from base tile height for long tiles
+
                         rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
-                        // Check for music section transition on first tile press of new section
+
                         this.check_and_update_music_for_row(active_row);
-                        // Start the game stopwatch when the first black tile is pressed
+
                         if (!this.game_data.has_game_started) {
                             this.game_data.has_game_started = true;
                             this.game_data.current_midi_time = 0;
                             console.log(`[GameState] Game started via bot (long tile)`);
                         }
-                        // Resume stopwatch for long tile holding
+
                         this.update_midi_playback_for_row(active_row);
-                        // Play sound when bot starts holding a long tile
+
                         this.play_tile_sound();
                     } else if (rect.is_holding) {
-                        // Keep stopwatch resumed while holding
                         this.update_midi_playback_for_row(active_row);
                     }
                 }
@@ -834,7 +769,6 @@ export class GameStateManager {
             if (row_top >= trigger_y) {
                 for (const rect of active_row.tiles) {
                     if (!rect.is_pressed) {
-                        // Use press_tile to play sound
                         this.press_tile(rect, active_row, rect.y + this.game_data.scroll_offset);
                     }
                 }
@@ -842,11 +776,6 @@ export class GameStateManager {
         }
     }
 
-    /**
-     * Re-evaluates which row is currently "active" (i.e. the lowest, uncompleted visible row).
-     * Triggers the out-of-bounds GAME OVER if an uncompleted row falls completely off the visible screen
-     * (meaning its Y coordinate plus the global scroll offset exceeds the screen height).
-     */
     private update_active_row(): void {
         const current_active_row = this.get_active_row();
         if (current_active_row && current_active_row.row_type !== RowType.START) {
@@ -859,7 +788,6 @@ export class GameStateManager {
             }
         }
 
-        // Fast O(1) evaluation starting only at safe bounds using local index scanning
         const start_idx = Math.max(0, this.game_data.active_row_index - 5);
         let has_incomplete = false;
 
@@ -882,7 +810,6 @@ export class GameStateManager {
             }
         }
 
-        // Find the lowest visible incomplete row
         const visible_incomplete_rows: RowData[] = [];
         for (let i = start_idx; i < this.game_data.rows.length; i++) {
             const row = this.game_data.rows[i];
@@ -892,8 +819,6 @@ export class GameStateManager {
                 visible_incomplete_rows.push(row);
             }
 
-            // Because rows build up from the bottom going strictly negative in Y positions,
-            // we can confidently break if we exceed the visible screen Y plane backwards! (past 0 point)
             const row_bottom_screen_y = row.y_position + this.game_data.scroll_offset + row.height;
             if (row_bottom_screen_y < 0) {
                 break;
@@ -918,13 +843,7 @@ export class GameStateManager {
         return null;
     }
 
-    /**
-     * Plays the appropriate sound for a tile press.
-     * If MIDI data is loaded, uses MIDI playback. Otherwise, plays random sample.
-     */
     private play_tile_sound(): void {
-        // If MIDI data is loaded, don't play random samples
-        // The MIDI playback is handled in update_scroll
         if (!this.game_data.midi_loaded) {
             this.audio_manager.play_random_sample();
         }
@@ -998,20 +917,19 @@ export class GameStateManager {
                     pressed_rect.is_holding = true;
                     pressed_rect.last_note_played_at = performance.now();
                     pressed_rect.active_circle_animations.push(pressed_rect.last_note_played_at);
-                    // Start progress bar from base tile height for long tiles
+
                     pressed_rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
-                    // Check for music section transition on first tile press of new section
+
                     this.check_and_update_music_for_row(active_row);
-                    // Start the game stopwatch when the first black tile is pressed
+
                     if (!this.game_data.has_game_started) {
                         this.game_data.has_game_started = true;
                         this.game_data.current_midi_time = 0;
                         console.log(`[GameState] Game started via handle_lane_input (long tile in hit zone)`);
                     }
-                    // Resume stopwatch for long tile holding
+
                     this.update_midi_playback_for_row(active_row);
 
-                    // Play sound for long black tiles
                     if (active_row.row_type !== RowType.START && !active_row.is_completed) {
                         this.play_tile_sound();
                     }
@@ -1097,20 +1015,19 @@ export class GameStateManager {
                 pressed_rect.is_holding = true;
                 pressed_rect.last_note_played_at = performance.now();
                 pressed_rect.active_circle_animations.push(pressed_rect.last_note_played_at);
-                // Start progress bar from base tile height for long tiles
+
                 pressed_rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
-                // Check for music section transition on first tile press of new section
+
                 this.check_and_update_music_for_row(active_row);
-                // Start the game stopwatch when the first black tile is pressed
+
                 if (!this.game_data.has_game_started) {
                     this.game_data.has_game_started = true;
                     this.game_data.current_midi_time = 0;
                     console.log(`[GameState] Game started via handle_keyboard_input (long tile)`);
                 }
-                // Resume stopwatch for long tile holding
+
                 this.update_midi_playback_for_row(active_row);
 
-                // Play sound for long black tiles
                 if (active_row.row_type !== RowType.START && !active_row.is_completed) {
                     this.play_tile_sound();
                 }
@@ -1134,7 +1051,6 @@ export class GameStateManager {
         rect.is_pressed = true;
         rect.completed_at = performance.now();
 
-        // Start the game stopwatch when the first black tile is pressed (fallback for long tiles)
         if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
             this.game_data.current_midi_time = 0;
@@ -1142,16 +1058,13 @@ export class GameStateManager {
         }
 
         if (!early_release) {
-            // All tiles now stay at 1.0 opacity after completion to support sprite animations
             rect.opacity = 1.0;
             this.particle_system.add_debris(rect.x, screen_y, rect.width, rect.height, 20);
         } else {
-            // Long tile released too early: don't pause stopwatch but skip MIDI notes for this tile
             console.log(`[GameState] Long tile released early, skipping notes for row ${row.row_index}`);
             this.skip_notes_for_active_row();
         }
 
-        // Add score for the completed tile
         if (row.row_type !== RowType.START) {
             this.score_manager.add_tile_score(rect, row, performance.now());
         }
@@ -1160,19 +1073,16 @@ export class GameStateManager {
     }
 
     private press_tile(rect: TileData, row: RowData, screen_y: number): void {
-        // Check for music section transition on first tile press of new section
         this.check_and_update_music_for_row(row);
-        // Start the game stopwatch when the first black tile is pressed
+
         if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
             this.game_data.current_midi_time = 0;
             console.log(`[GameState] Game started via press_tile (normal tile)`);
         }
 
-        // Resume stopwatch for the current tile press
         this.update_midi_playback_for_row(row);
 
-        // Play sound for black tiles
         if (row.row_type !== RowType.START && !row.is_completed) {
             this.play_tile_sound();
         }
@@ -1198,7 +1108,6 @@ export class GameStateManager {
                 this.game_data.active_row_index = next_row.row_index;
                 this.game_data.current_dt_press_count = 0;
 
-                // Handle empty rows between the completed row and the next incomplete row
                 for (let i = old_index + 1; i < next_row.row_index; i++) {
                     const middle_row = this.game_data.rows[i];
                     if (middle_row && middle_row.row_type === RowType.EMPTY) {
@@ -1211,14 +1120,11 @@ export class GameStateManager {
 
     private update_midi_playback_for_row(row: RowData): void {
         const level_row_index = row.row_index - 1;
-        if (level_row_index < 0) return; // START row
+        if (level_row_index < 0) return;
 
         const timing = this.game_data.level_row_timings[level_row_index];
         if (!timing) return;
 
-        // Jump to start time if we are behind, but ONLY when starting a new manual row interaction.
-        // We exclude EMPTY rows and second-part double-tile interactions to ensure the stopwatch
-        // flows rhythmically rather than jumping forward and causing bursts of notes.
         const is_manual_interaction = row.row_type !== RowType.EMPTY;
         const is_first_interaction_of_row =
             row.row_type !== RowType.DOUBLE || this.game_data.current_dt_press_count === 0;
@@ -1236,9 +1142,6 @@ export class GameStateManager {
 
         this.game_data.current_dt_press_count++;
         if (row.row_type === RowType.DOUBLE) {
-            // Tiered timing for double tiles:
-            // 1st press resumes stopwatch until the row's midpoint.
-            // 2nd press (hitting immediately) extends the target to the row's end without jumping time.
             if (this.game_data.current_dt_press_count === 1) {
                 this.game_data.target_time_for_next_note = timing.mid_time;
             } else {
@@ -1250,7 +1153,6 @@ export class GameStateManager {
 
         this.game_data.midi_playing = true;
 
-        // Trigger an immediate MIDI update to ensure notes at the start/jump point play without delay
         if (this.game_data.midi_loaded) {
             const played_note_ids = this.audio_manager.update_midi_playback(
                 this.game_data.current_midi_time,
@@ -1269,7 +1171,7 @@ export class GameStateManager {
         );
         for (const ind of indicators) {
             this.game_data.skipped_midi_notes.push(ind.note_id);
-            ind.is_consumed = true; // Mark as consumed to remove from screen
+            ind.is_consumed = true;
         }
     }
 
@@ -1291,7 +1193,6 @@ export class GameStateManager {
     ): void {
         this.game_data.state = GameState.GAME_OVER_MISCLICKED;
 
-        // Play game over chord
         this.audio_manager.play_game_over_chord();
 
         const column_width = SCREEN_CONFIG.WIDTH / 4;
@@ -1325,7 +1226,6 @@ export class GameStateManager {
     private trigger_game_over_out_of_bounds(active_row: RowData): void {
         this.game_data.state = GameState.GAME_OVER_OUT_OF_BOUNDS;
 
-        // Play game over chord
         this.audio_manager.play_game_over_chord();
 
         const unpressed_rect = active_row.tiles.find(r => !r.is_pressed);
@@ -1348,10 +1248,6 @@ export class GameStateManager {
         };
     }
 
-    /**
-     * Calculates the target scroll offset required to properly animate the rows
-     * back up when they fall out of bounds, so the failed row lands cleanly above the bottom edge.
-     */
     private calculate_reposition_offset(): number {
         const active_row = this.get_active_row();
 
@@ -1402,7 +1298,6 @@ export class GameStateManager {
         const elapsed = current_time - animation.start_time;
         const progress = Math.min(elapsed / animation.duration, 1.0);
 
-        // Easing function for smoother scroll repositioning
         const eased_progress = 1 - Math.pow(1 - progress, 3);
 
         const new_offset = animation.start_offset + (animation.target_offset - animation.start_offset) * eased_progress;
@@ -1460,9 +1355,6 @@ export class GameStateManager {
         return get_active_indicators(this.game_data.note_indicators);
     }
 
-    /**
-     * Gets the current score data for rendering.
-     */
     get_score_data(): ScoreData {
         const data = this.score_manager.get_score_data();
         if (this.game_data.game_mode === GameMode.ENDLESS_CHALLENGE) {
@@ -1492,7 +1384,7 @@ export class GameStateManager {
             const indicator = note_id_to_indicator.get(note_id);
             if (indicator) {
                 indicator.is_consumed = true;
-                // Only spawn one set of animations per (row, time) hit to improve performance
+
                 const hit_key = `${indicator.row_index}_${indicator.time}`;
                 if (!processed_hits.has(hit_key)) {
                     processed_hits.add(hit_key);
@@ -1510,9 +1402,6 @@ export class GameStateManager {
         }
     }
 
-    /**
-     * Updates score animations. Should be called once per frame.
-     */
     update_score(current_time: number): void {
         this.score_manager.update(current_time);
     }

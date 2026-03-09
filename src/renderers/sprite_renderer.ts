@@ -9,12 +9,12 @@ interface SpriteVertex {
 }
 
 export interface RenderSpriteOptions {
-    anchor_x?: number; // 0 to 1
-    anchor_y?: number; // 0 to 1
+    anchor_x?: number;
+    anchor_y?: number;
     opacity?: number;
     color?: [number, number, number];
-    nine_slice?: [number, number, number, number]; // [top, right, bottom, left] margins
-    scissor?: [number, number, number, number]; // [x, y, w, h] in screen space
+    nine_slice?: [number, number, number, number];
+    scissor?: [number, number, number, number];
 }
 
 export class SpriteRenderer {
@@ -289,7 +289,6 @@ export class SpriteRenderer {
         const tex_w = this.sheet_data!.meta.size?.x ?? 1024;
         const tex_h = this.sheet_data!.meta.size?.y ?? 1024;
 
-        // Add a tiny 0.5px texel padding to prevent sampling bleed from adjacent sprites in the atlas
         const padding = 0.5;
         const fw = Math.max(0, frame.frame.w - padding * 2);
         const fh = Math.max(0, frame.frame.h - padding * 2);
@@ -298,10 +297,6 @@ export class SpriteRenderer {
 
         let u, v;
         if (frame.rotated) {
-            // Rotated 90 CW:
-            // Logical X (0..1) maps to Atlas Y (0..1)
-            // Logical Y (0..1) maps to Atlas X (1..0)
-            // Note: fw is atlas-width (orig-height), fh is atlas-height (orig-width)
             u = (fx + (1 - norm_y) * fw) / tex_w;
             v = (fy + norm_x * fh) / tex_h;
         } else {
@@ -314,7 +309,7 @@ export class SpriteRenderer {
     private push_clipped_quad(
         vertices: SpriteVertex[],
         dst_rect: [number, number, number, number],
-        norm_rect: [number, number, number, number], // [nx, ny, nw, nh]
+        norm_rect: [number, number, number, number],
         frame: SpriteFrame,
         color: [number, number, number, number],
         scissor?: [number, number, number, number],

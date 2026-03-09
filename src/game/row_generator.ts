@@ -67,10 +67,6 @@ export function create_start_row(): { row: RowData; lane_index: number } {
     };
 }
 
-/**
- * Determines the occupied columns for a double row based on the preceding row type.
- * Ensures the generated pattern maintains reachable paths for the player without awkward cross-screen jumps.
- */
 function determine_double_lanes(preceding_row: RowData | null): [number, number] {
     if (preceding_row === null) {
         return random_int(0, 1) === 0 ? [0, 2] : [1, 3];
@@ -102,11 +98,6 @@ function determine_double_lanes(preceding_row: RowData | null): [number, number]
     return random_int(0, 1) === 0 ? [0, 2] : [1, 3];
 }
 
-/**
- * Generates a single block row while ensuring a continuous playable path.
- * If the preceded row is a double, the single lane is chosen from the gaps.
- * Otherwise, the new lane ignores the `last_single_lane` to prevent straight vertical pillars.
- */
 function generate_single_row(
     row_index: number,
     y_position: number,
@@ -184,10 +175,6 @@ function get_random_row_type(): GeneratedRowType {
     return chosen ?? GeneratedRowType.SINGLE;
 }
 
-/**
- * Generates the full sequence of rows, starting from the bottom (highest Y value)
- * and building upwards by subtracting each row's height. Y=0 is the top visual boundary.
- */
 export function generate_all_rows(row_count: number = DEFAULT_ROW_COUNT): RowData[] {
     const rows: RowData[] = [];
 

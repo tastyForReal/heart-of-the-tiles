@@ -152,9 +152,6 @@ export interface RowTiming {
     end_time: number;
 }
 
-/**
- * Combined output for all musics in a level file
- */
 export interface LevelData {
     rows: RowTypeResult[];
     musics: MusicMetadata[];

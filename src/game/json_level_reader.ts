@@ -11,13 +11,6 @@ import {
 import { RowType, MusicMetadata, LevelData } from './types.js';
 import type { RowTypeResult } from './types.js';
 
-// =============================================================================
-// MIDI Conversion Functions
-// =============================================================================
-
-/**
- * Gets the MIDI note number from a note name string.
- */
 export function get_note_number(note_name: string): number {
     if (note_name in NOTE_TO_MIDI) {
         return NOTE_TO_MIDI[note_name] ?? 0;
@@ -25,11 +18,7 @@ export function get_note_number(note_name: string): number {
     return 0;
 }
 
-/**
- * Gets the base beats multiplier from the baseBeats string.
- */
 export function get_base_beats_multiplier(base_beats_str: string): number {
-    // Handle both string and number inputs
     const key = String(base_beats_str);
     const value = BASE_BEATS_MAP[key];
     if (value !== undefined) {
@@ -38,10 +27,6 @@ export function get_base_beats_multiplier(base_beats_str: string): number {
     throw new Error(`Unknown base_beats value: ${base_beats_str}`);
 }
 
-/**
- * Calculates the length in ticks from a length code string.
- * Length codes use letters H-P for note lengths.
- */
 export function get_length(str: string, base_beats: number): number {
     let delay = 0;
     for (const char of str) {
@@ -83,10 +68,6 @@ export function get_length(str: string, base_beats: number): number {
     return delay;
 }
 
-/**
- * Calculates the rest length in ticks from a rest code string.
- * Rest codes use letters Q-Y.
- */
 export function get_rest(str: string, base_beats: number): number {
     let delay = 0;
     for (const char of str) {
@@ -128,9 +109,6 @@ export function get_rest(str: string, base_beats: number): number {
     return delay;
 }
 
-/**
- * Safe divider class that accumulates remainders for accurate division.
- */
 export class SafeDivider {
     private remainder: number = 0;
 
@@ -152,9 +130,6 @@ export class SafeDivider {
     }
 }
 
-/**
- * Parses a single track score string into messages.
- */
 export function parse_track(score: string, bpm: number, base_beats: number): ParsedTrack {
     const messages: ParsedMessage[] = [];
     let mode = 0;
@@ -234,7 +209,6 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
             if (mode === 5) {
                 mode = 0;
             } else if (mode === 0) {
-                // Duplicated separator - ignore
             } else {
                 throw new Error(`Unexpected ${char}`);
             }
@@ -243,7 +217,6 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
                 continue;
             }
 
-            // Ignore < > and digits outside parsing contexts
             if ((char === '<' || (char >= '0' && char <= '9')) && mode === 0) {
                 continue;
             }
@@ -259,7 +232,6 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
                 continue;
             }
 
-            // Parse a token (note name or length code)
             let temp = '';
             while (true) {
                 const current_char = score[i];
@@ -296,7 +268,6 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
             const rest = get_rest(temp, base_beats);
 
             if (note !== 0) {
-                // It's a note
                 if (mode === 0) {
                     mode = 3;
                 } else if (mode === 1) {
@@ -305,21 +276,17 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
                     throw new Error(`Unexpected token: ${temp}`);
                 }
                 if (note !== 1) {
-                    // note !== 1 means it's not mute/empty
                     notes.push(note);
                 }
             } else if (length !== 0) {
-                // It's a length code
                 if (mode !== 4) {
                     throw new Error(`Unexpected token: ${temp}`);
                 }
                 mode = 6;
 
-                // Flush notes
                 process_notes(notes, length, messages, bpm);
                 notes = [];
             } else if (rest !== 0) {
-                // It's a rest
                 if (mode === 0) {
                     mode = 5;
                     messages.push({ type: 2, value: rest });
@@ -344,20 +311,15 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
     };
 }
 
-/**
- * Processes accumulated notes and generates messages.
- */
 function process_notes(notes: number[], length: number, messages: ParsedMessage[], bpm: number): void {
     const sdiv = new SafeDivider();
 
-    // Count special operators
-    const div = notes.filter(n => n === 2).length; // ~
-    const arp1 = notes.filter(n => n === 3).length; // @
-    const arp2 = notes.filter(n => n === 4).length; // %
-    const arp3 = notes.filter(n => n === 5).length; // !
-    const arp4 = notes.filter(n => n === 6).length; // ^
+    const div = notes.filter(n => n === 2).length;
+    const arp1 = notes.filter(n => n === 3).length;
+    const arp2 = notes.filter(n => n === 4).length;
+    const arp3 = notes.filter(n => n === 5).length;
+    const arp4 = notes.filter(n => n === 6).length;
 
-    // Validate operator combination
     const operator_count = Number(div > 0) + Number(arp1 > 0) + Number(arp2 > 0) + Number(arp3 > 0) + Number(arp4 > 0);
     if (operator_count > 1 || arp4 > 1) {
         throw new Error('Problem with operators');
@@ -366,7 +328,6 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
     const divisor = div + 1;
 
     if (arp1 > 0) {
-        // @ operator (arpeggio type 1)
         for (let idx = 0; idx <= notes.length; idx++) {
             if (idx === notes.length) {
                 messages.push({ type: 2, value: length });
@@ -396,7 +357,6 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
             }
         }
     } else if (arp2 > 0) {
-        // % operator (arpeggio type 2)
         for (let idx = 0; idx <= notes.length; idx++) {
             if (idx === notes.length) {
                 messages.push({ type: 2, value: length });
@@ -421,7 +381,6 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
             }
         }
     } else if (arp3 > 0) {
-        // ! operator (arpeggio type 3)
         for (let idx = 0; idx <= notes.length; idx++) {
             if (idx === notes.length) {
                 messages.push({ type: 2, value: length });
@@ -446,7 +405,6 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
             }
         }
     } else if (arp4 > 0) {
-        // ^ operator (ornament)
         const note0 = notes[0];
         const note1 = notes[1];
         const note2 = notes[2];
@@ -465,16 +423,13 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
         const bpm32 = bpm * 32;
 
         while (true) {
-            // Play note
             const currentNote = notes[note_flip];
             if (currentNote !== undefined) {
                 messages.push({ type: 0, value: currentNote });
             }
 
-            // Wait
             let delay = sdiv.divide(bpm32, 720);
             if (delay >= length) {
-                // End
                 messages.push({ type: 2, value: length });
                 const endNote = notes[note_flip];
                 if (endNote !== undefined) {
@@ -490,7 +445,6 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                 }
             }
 
-            // Flip between first and third note
             if (note_flip === 0) {
                 note_flip = 2;
             } else if (note_flip === 2) {
@@ -498,13 +452,11 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
             }
         }
     } else {
-        // Normal case (with optional ~ dividers)
         const temp_notes: number[] = [];
 
         for (let idx = 0; idx <= notes.length; idx++) {
             const noteVal = notes[idx];
             if (idx === notes.length || noteVal === 2) {
-                // Flush accumulated notes
                 for (const tn of temp_notes) {
                     messages.push({ type: 0, value: tn });
                 }
@@ -520,9 +472,6 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
     }
 }
 
-/**
- * Calculates the length difference between two tracks.
- */
 export function calculate_track_length_diff(messages1: ParsedMessage[], messages2: ParsedMessage[]): number {
     let diff = 0;
     const msg1 = [...messages1];
@@ -559,13 +508,9 @@ export function calculate_track_length_diff(messages1: ParsedMessage[], messages
     return diff;
 }
 
-/**
- * Shrinks a track by removing a specified number of ticks.
- */
 export function shrink_track(messages: ParsedMessage[], amount: number): void {
     let remaining = amount;
 
-    // Process from end to beginning
     for (let i = messages.length; i > 0 && remaining > 0; i--) {
         const msg = messages[i - 1];
         if (msg && msg.type === 2) {
@@ -584,7 +529,6 @@ export function shrink_track(messages: ParsedMessage[], amount: number): void {
         throw new Error('Unable to shrink track - this should not happen');
     }
 
-    // Clean up orphaned notes
     const note_on_stack: number[] = [];
     for (let i = 0; i < messages.length; i++) {
         const msg = messages[i];
@@ -606,9 +550,6 @@ export function shrink_track(messages: ParsedMessage[], amount: number): void {
     }
 }
 
-/**
- * Verifies and aligns track lengths within a part.
- */
 export function verify_track_length(tracks: ParsedTrack[]): void {
     if (tracks.length === 0) {
         throw new Error('No tracks');
@@ -629,11 +570,6 @@ export function verify_track_length(tracks: ParsedTrack[]): void {
     }
 }
 
-/**
- * Parses a complete song into parts.
- * @param musics Array of music parts to parse
- * @param base_bpm Fallback BPM to use when a music part doesn't have its own BPM
- */
 export function parse_song(
     musics: Array<{ bpm?: string | number; baseBeats: string | number; scores: string[] }>,
     baseBpm?: number,
@@ -646,7 +582,6 @@ export function parse_song(
             if (!music) continue;
             const base_beats_multiplier = get_base_beats_multiplier(String(music.baseBeats));
 
-            // Use music.bpm if defined, otherwise fall back to baseBpm
             const music_bpm = music.bpm !== undefined ? Number(music.bpm) : (baseBpm ?? 120);
             const calculated_bpm = music_bpm * base_beats_multiplier;
 
@@ -657,7 +592,6 @@ export function parse_song(
             console.log(`  - music_bpm: ${music_bpm}`);
             console.log(`  - calculated_bpm (effective): ${calculated_bpm.toFixed(2)}`);
 
-            // Validate BPM is a valid number
             if (isNaN(calculated_bpm) || calculated_bpm <= 0) {
                 console.warn(`[MidiParser] Invalid BPM detected: ${calculated_bpm}, using default 120`);
             }
@@ -698,11 +632,7 @@ export function parse_song(
     return parts;
 }
 
-/**
- * Aligns tracks across all parts by duplicating tracks where necessary.
- */
 function align_tracks_across_parts(parts: ParsedPart[]): ParsedPart[] {
-    // Find maximum number of tracks
     let max_tracks = 0;
     for (const part of parts) {
         if (part.tracks.length > max_tracks) {
@@ -710,7 +640,6 @@ function align_tracks_across_parts(parts: ParsedPart[]): ParsedPart[] {
         }
     }
 
-    // Duplicate last track for parts with fewer tracks
     for (const part of parts) {
         while (part.tracks.length < max_tracks) {
             const last_track = part.tracks[part.tracks.length - 1];
@@ -718,7 +647,6 @@ function align_tracks_across_parts(parts: ParsedPart[]): ParsedPart[] {
             const new_track: ParsedTrack = {
                 base_beats: last_track.base_beats,
                 messages: last_track.messages.map(msg => {
-                    // Mark note on/off as ignored (type 3)
                     if (msg.type < 2) {
                         return { type: 3, value: msg.value };
                     }
@@ -732,9 +660,6 @@ function align_tracks_across_parts(parts: ParsedPart[]): ParsedPart[] {
     return parts;
 }
 
-/**
- * Calculates the total duration of a part in ticks.
- */
 function calculate_part_duration(tracks: ParsedTrack[]): number {
     let duration = 0;
 
@@ -753,35 +678,26 @@ function calculate_part_duration(tracks: ParsedTrack[]): number {
     return duration;
 }
 
-/**
- * Converts parsed parts to formatted MIDI JSON.
- * This is the main conversion function that produces the output format.
- */
 export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
     console.log(`[MidiParser] convert_to_midi_json: Processing ${parts.length} parts`);
 
-    // Align tracks across all parts
     const aligned_parts = align_tracks_across_parts(parts);
     console.log(`[MidiParser] Tracks aligned across parts`);
 
-    const ppq = 960; // Ticks per quarter note
+    const ppq = 960;
     const tempos: MidiTempo[] = [];
     const tracks: MidiTrack[] = [];
 
     console.log(`[MidiParser] Using PPQ: ${ppq}`);
 
-    // Calculate tick scaling factor (we use PPQ 960 internally)
     const tick_scale = 1;
 
-    // Process each part
     let current_ticks = 0;
 
     for (let part_idx = 0; part_idx < aligned_parts.length; part_idx++) {
         const part = aligned_parts[part_idx];
         if (!part) continue;
 
-        // Set tempo at the current position
-        // The conversion from effective BPM to actual BPM is: actual_bpm = effective_bpm / 30
         const actual_bpm = part.bpm / 30;
         console.log(`[MidiParser] Processing part ${part_idx}:`);
         console.log(`  - Effective BPM: ${part.bpm.toFixed(2)}`);
@@ -794,12 +710,10 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
             bpm: actual_bpm,
         });
 
-        // Process each track in the part
         for (let track_idx = 0; track_idx < part.tracks.length; track_idx++) {
             const track = part.tracks[track_idx];
             if (!track) continue;
 
-            // Get or create the output track
             let output_track = tracks[track_idx];
             if (!output_track) {
                 output_track = {
@@ -809,13 +723,11 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
                 tracks[track_idx] = output_track;
             }
 
-            // Convert messages to notes with tick scaling
             const notes_before = output_track.notes.length;
             process_track_messages(track.messages, output_track, current_ticks, tick_scale);
             console.log(`    - Track ${track_idx}: added ${output_track.notes.length - notes_before} notes`);
         }
 
-        // Calculate part duration for track alignment
         const part_duration = calculate_part_duration(part.tracks);
         console.log(`  - Part duration: ${part_duration} ticks`);
         current_ticks += part_duration;
@@ -824,13 +736,10 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
     console.log(`[MidiParser] Total ticks: ${current_ticks}`);
     console.log(`[MidiParser] Calculating times for ${tracks.length} tracks...`);
 
-    // Calculate times for all notes based on tempo changes
     calculate_times(tracks, tempos, ppq);
 
-    // Add time to tempos
     calculate_tempo_times(tempos, ppq);
 
-    // Log final statistics
     let total_notes = 0;
     for (const track of tracks) {
         if (track) {
@@ -850,9 +759,6 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
     };
 }
 
-/**
- * Processes track messages and adds notes to the output track.
- */
 function process_track_messages(
     messages: ParsedMessage[],
     output_track: MidiTrack,
@@ -860,23 +766,23 @@ function process_track_messages(
     tick_scale: number,
 ): void {
     let current_ticks = start_ticks;
-    const active_notes: Map<number, number> = new Map(); // note number -> start ticks
+    const active_notes: Map<number, number> = new Map();
 
     for (const msg of messages) {
         switch (msg.type) {
-            case 0: // Note on
+            case 0:
                 active_notes.set(msg.value, current_ticks);
                 break;
 
-            case 1: // Note off
+            case 1:
                 {
                     const note_start = active_notes.get(msg.value);
                     if (note_start !== undefined) {
                         output_track.notes.push({
                             midi: msg.value,
                             ticks: Math.round(note_start * tick_scale),
-                            time: 0, // Will be calculated later
-                            duration: 0, // Will be calculated later
+                            time: 0,
+                            duration: 0,
                             duration_ticks: Math.round((current_ticks - note_start) * tick_scale),
                             velocity: 100 / 127,
                             note_off_velocity: 64 / 127,
@@ -886,21 +792,17 @@ function process_track_messages(
                 }
                 break;
 
-            case 2: // Delay/time
+            case 2:
                 current_ticks += msg.value;
                 break;
 
-            case 3: // Ignore
+            case 3:
                 break;
         }
     }
 }
 
-/**
- * Calculates time values for notes based on tempo changes.
- */
 function calculate_times(tracks: MidiTrack[], tempos: MidiTempo[], ppq: number): void {
-    // Sort tempos by ticks
     tempos.sort((a, b) => a.ticks - b.ticks);
 
     for (const track of tracks) {
@@ -912,18 +814,12 @@ function calculate_times(tracks: MidiTrack[], tempos: MidiTempo[], ppq: number):
     }
 }
 
-/**
- * Calculates time values for tempo events.
- */
 function calculate_tempo_times(tempos: MidiTempo[], ppq: number): void {
     for (const tempo of tempos) {
         tempo.time = ticks_to_seconds(tempo.ticks, tempos, ppq);
     }
 }
 
-/**
- * Converts ticks to seconds based on tempo changes.
- */
 function ticks_to_seconds(ticks: number, tempos: MidiTempo[], ppq: number): number {
     let time = 0;
     let current_ticks = 0;
@@ -936,25 +832,19 @@ function ticks_to_seconds(ticks: number, tempos: MidiTempo[], ppq: number): numb
         if (tempo.ticks >= ticks) {
             break;
         }
-        // Add time from current position to this tempo change
+
         const delta_ticks = tempo.ticks - current_ticks;
         time += (delta_ticks / ppq) * (60 / current_bpm);
         current_ticks = tempo.ticks;
         current_bpm = tempo.bpm;
     }
 
-    // Add remaining time
     const remaining_ticks = ticks - current_ticks;
     time += (remaining_ticks / ppq) * (60 / current_bpm);
 
     return time;
 }
 
-/**
- * Main conversion function: converts raw JSON music data to formatted MIDI JSON.
- * @param musics Array of music parts to convert
- * @param base_bpm Fallback BPM to use when a music part doesn't have its own BPM
- */
 export function convert_raw_to_midi_json(
     musics: Array<{ bpm?: string | number; baseBeats: string | number; scores: string[] }>,
     baseBpm?: number,
@@ -989,11 +879,6 @@ export function convert_raw_to_midi_json(
     return result;
 }
 
-// =============================================================================
-// Level Loader Types and Functions
-// =============================================================================
-
-// RowTypeResult is defined in types.ts and re-exported here for backward compatibility
 export type { RowTypeResult, LevelData, MusicMetadata } from './types.js';
 
 interface ParsedComponent {
@@ -1268,28 +1153,15 @@ function process_music(music: { id: number; baseBeats: number; scores: string[] 
     return generate_results(primary_components, blended_indices, unit_divisor);
 }
 
-/**
- * Music entry in the JSON file (matches JSON format)
- */
 export interface MusicEntry {
     id: number;
     bpm?: number | undefined;
-    /**
-     * Property baseBeats is kept in camelCase to maintain compatibility with existing
-     * JSON level files. Do not rename to base_beats.
-     */
+
     baseBeats: number;
     scores: string[];
 }
 
-/**
- * Input file format for level data (matches JSON format)
- */
 export interface MusicInputFile {
-    /**
-     * Property baseBpm is kept in camelCase to maintain compatibility with existing
-     * JSON level files. Do not rename to base_bpm.
-     */
     baseBpm: number;
     musics: MusicEntry[];
     audition?:
@@ -1309,9 +1181,6 @@ export interface MusicOutputFile {
     results: MusicOutput[];
 }
 
-/**
- * Validates the structure of music input data
- */
 function validate_music_input(data: unknown): MusicInputFile {
     if (!data || typeof data !== 'object') {
         throw new Error('Invalid JSON structure: expected an object');
@@ -1360,9 +1229,6 @@ function validate_music_input(data: unknown): MusicInputFile {
     };
 }
 
-/**
- * Parses a JSON string containing music data and returns individual music outputs
- */
 export function parse_music_json_string(json_string: string): MusicOutput[] {
     const data = JSON.parse(json_string);
     validate_music_input(data);
@@ -1384,9 +1250,6 @@ export function parse_music_json_string(json_string: string): MusicOutput[] {
     return results;
 }
 
-/**
- * Processes music input data and returns individual music outputs
- */
 export function process_music_input_data(data: MusicInputFile): MusicOutput[] {
     const results: MusicOutput[] = [];
 
@@ -1404,18 +1267,11 @@ export function process_music_input_data(data: MusicInputFile): MusicOutput[] {
     return results;
 }
 
-/**
- * Result from selecting and loading a music file.
- */
 export interface LoadedMusicFile {
     level_data: LevelData;
     filename: string;
 }
 
-/**
- * Opens a file picker and loads a music JSON file.
- * Returns the parsed level data along with the selected filename.
- */
 export async function select_and_load_music_file(): Promise<LoadedMusicFile> {
     return new Promise((resolve, reject) => {
         const input = document.createElement('input');
@@ -1445,13 +1301,9 @@ export async function select_and_load_music_file(): Promise<LoadedMusicFile> {
     });
 }
 
-/**
- * Loads level data from a parsed JSON object
- */
 export function load_level_from_json(json: unknown): LevelData {
     const data = validate_music_input(json);
 
-    // Process all musics
     const all_rows: RowTypeResult[] = [];
     const musics_metadata: MusicMetadata[] = [];
 
@@ -1481,7 +1333,6 @@ export function load_level_from_json(json: unknown): LevelData {
         current_row_index += rows.length;
     }
 
-    // Convert to MIDI JSON for audio playback
     const music_data = data.musics.map(m => {
         const result: { bpm?: string | number; baseBeats: string | number; scores: string[] } = {
             baseBeats: m.baseBeats,
