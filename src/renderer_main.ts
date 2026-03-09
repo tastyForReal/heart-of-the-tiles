@@ -24,8 +24,9 @@ async function main(): Promise<void> {
 
     const url_params = new URLSearchParams(window.location.search);
     const is_bot_active = url_params.has('bot') || localStorage.getItem('bot') === 'true';
+    const is_red_note_indicator_enabled = false;
 
-    const game_controller = new GameController({ is_bot_active });
+    const game_controller = new GameController({ is_bot_active, is_red_note_indicator_enabled });
 
     const initialized = await game_controller.initialize(canvas);
 
