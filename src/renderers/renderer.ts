@@ -228,7 +228,7 @@ export class Renderer {
     }
 
     private create_tile_vertices(rect: TileData, scroll_offset: number): RectangleVertex[] {
-        const effective_opacity = rect.flash_state ? rect.opacity * 0.5 : rect.opacity;
+        const effective_opacity = rect.flash_state ? 0 : rect.opacity;
         const color = color_to_rgba(rect.color, effective_opacity);
         return this.create_rect_vertices(rect.x, rect.y + scroll_offset, rect.width, rect.height, color);
     }
@@ -401,7 +401,7 @@ export class Renderer {
 
                 const is_long_tile =
                     row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT && row.row_type !== RowType.StartingTileRow;
-                const effective_opacity = rect.flash_state ? rect.opacity * 0.5 : rect.opacity;
+                const effective_opacity = rect.flash_state ? 0 : rect.opacity;
                 const row_bottom = rect_y + rect.height;
                 const scale = rect.width / 134;
 
