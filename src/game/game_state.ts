@@ -874,7 +874,7 @@ export class GameStateManager {
         if (this.config.enable_autoplay) {
             if (is_down) {
                 if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
-                    this.trigger_game_over_misclicked(lane_index, screen_x, screen_y, active_row);
+                    this.trigger_game_over_misclicked(lane_index, active_row);
                 }
             }
             return false;
@@ -933,7 +933,7 @@ export class GameStateManager {
                 return true;
             }
         } else if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
-            this.trigger_game_over_misclicked(lane_index, screen_x, screen_y, active_row);
+            this.trigger_game_over_misclicked(lane_index, active_row);
             return false;
         }
 
@@ -970,10 +970,7 @@ export class GameStateManager {
         if (this.config.enable_autoplay) {
             if (is_down) {
                 if (!pressed_rect && row_bottom >= timing_zone) {
-                    const column_width = SCREEN_CONFIG.WIDTH / 4;
-                    const screen_x = lane_index * column_width + column_width / 2;
-                    const screen_y = active_row.y_position + this.game_data.scroll_offset + active_row.height / 2;
-                    this.trigger_game_over_misclicked(lane_index, screen_x, screen_y, active_row);
+                    this.trigger_game_over_misclicked(lane_index, active_row);
                 }
             }
             return false;
@@ -1027,10 +1024,7 @@ export class GameStateManager {
                 return true;
             }
         } else if (!pressed_rect) {
-            const column_width = SCREEN_CONFIG.WIDTH / 4;
-            const screen_x = lane_index * column_width + column_width / 2;
-            const screen_y = active_row.y_position + this.game_data.scroll_offset + active_row.height / 2;
-            this.trigger_game_over_misclicked(lane_index, screen_x, screen_y, active_row);
+            this.trigger_game_over_misclicked(lane_index, active_row);
             return false;
         }
 
@@ -1174,14 +1168,8 @@ export class GameStateManager {
         return null;
     }
 
-    private trigger_game_over_misclicked(
-        lane_index: number,
-        _screen_x: number,
-        _screen_y: number,
-        active_row: RowData,
-    ): void {
+    private trigger_game_over_misclicked(lane_index: number, active_row: RowData): void {
         this.game_data.state = GameState.TileMisclicked;
-
         this.audio_manager.play_game_over_chord();
 
         const column_width = SCREEN_CONFIG.WIDTH / 4;
